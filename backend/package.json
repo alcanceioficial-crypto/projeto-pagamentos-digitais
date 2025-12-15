@@ -1,15 +1,13 @@
 {
   "name": "backend-pagamentos-digitais",
   "version": "1.0.0",
-  "description": "Backend para plataforma de pagamentos digitais",
-  "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js"
   },
   "dependencies": {
-    "express": "^4.19.2",
+    "axios": "^1.6.8",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
-    "efi-pay": "git+https://github.com/efipay/sdk-node.git"
+    "express": "^4.19.2"
   }
 }
