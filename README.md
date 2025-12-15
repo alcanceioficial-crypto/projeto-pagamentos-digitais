@@ -45,69 +45,49 @@ Permitir que usuários:
 
 ---
 
-## 🗂 Estrutura do Repositório
+🔄 Metodologia de Desenvolvimento
 
-```
-projeto-pagamentos-digitais/
-│
-├── backend/
-│   ├── src/
-│   │   ├── server.js        # Inicialização do servidor
-│   │   ├── app.js           # Configuração do Express
-│   │   ├── routes/          # Rotas da aplicação
-│   │   ├── controllers/     # Controladores (lógica das rotas)
-│   │   ├── services/        # Serviços (pagamentos, email, tokens)
-│   │   ├── config/          # Configurações gerais
-│   │   └── utils/           # Funções utilitárias
-│   │
-│   ├── .env.example         # Exemplo de variáveis de ambiente
-│   ├── package.json
-│   └── package-lock.json
-│
-├── README.md
-└── .gitignore
-```
+O projeto segue o modelo passo a passo, sempre validando antes de avançar:
 
----
+Backend base (Express funcionando)
 
-## 🔄 Metodologia de Desenvolvimento
+Deploy no Render
 
-O projeto segue o modelo **passo a passo**, sempre validando antes de avançar:
+Integração EFÍ (Sandbox)
 
-1. Backend base (Express funcionando)
-2. Deploy no Render
-3. Integração EFÍ (Sandbox)
-4. Pagamento via PIX
-5. Webhook de confirmação
-6. Liberação automática de conteúdo
-7. Débito e Crédito
-8. Envio de email
-9. Frontend
+Pagamento via PIX
+
+Webhook de confirmação
+
+Liberação automática de conteúdo
+
+Débito e Crédito
+
+Envio de email
+
+Frontend
 
 ⚠️ Nenhuma etapa avança sem testes concluídos.
 
----
+🔐 Segurança
 
-## 🔐 Segurança
+Conteúdos não possuem links públicos
 
-* Conteúdos não possuem links públicos
-* Acesso liberado apenas por:
+Acesso liberado apenas por:
 
-  * Token único
-  * Token com expiração (configurável)
-* Tokens vinculados a email + produto
-* Confirmação **exclusiva via webhook do banco**
+Token único
 
----
+Token com expiração (configurável)
 
-## 🧪 Ambiente de Desenvolvimento
+Tokens vinculados a email + produto
 
-* Node.js (versão LTS recomendada)
-* EFÍ / Gerencianet em **Sandbox**
-* Testes locais antes do deploy
+Confirmação exclusiva via webhook do banco
 
----
+🧪 Ambiente de Desenvolvimento
 
-## 🚧 Status do Projeto
+Node.js (versão LTS recomendada)
 
-🟡 **Em desenvolvimen
+EFÍ / Gerencianet em Sandbox
+
+Testes locais antes do deploy
+
