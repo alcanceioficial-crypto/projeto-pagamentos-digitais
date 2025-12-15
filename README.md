@@ -90,4 +90,22 @@ Node.js (versão LTS recomendada)
 EFÍ / Gerencianet em Sandbox
 
 Testes locais antes do deploy
+📌 Observações Importantes
 
+O módulo de Teste de QI (PIX apenas) será tratado como projeto separado, ao final.
+
+O projeto foi pensado para escalar facilmente.
+
+A estrutura permite adicionar novos produtos sem refatorações grandes.
+
+📞 Suporte / Evolução
+
+Este projeto está sendo desenvolvido de forma guiada e incremental, com foco em:
+
+Clareza
+
+Segurança
+
+Testabilidade
+
+Manutenção a longo prazo
