@@ -10,6 +10,6 @@
     "express": "^4.19.2",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
-    "efi-pay": "git+https://github.com/efipay/sdk-node.git"
+    "efi-pay": "https://github.com/efipay/sdk-node.git"
   }
 }
