@@ -1,4 +1,4 @@
-const EfiPay = require('efi-api-sdk-node');
+const EfiPay = require('efi-pay');
 const path = require('path');
 
 const certPath = path.resolve(__dirname, '../../certs/efi-cert.p12');
