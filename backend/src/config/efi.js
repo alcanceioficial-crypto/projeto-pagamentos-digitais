@@ -10,6 +10,6 @@ const options = {
   certificate: certPath
 };
 
-const efi = new EfiPay(options);
+const gerencianet = new EfiPay(options);
 
-module.exports = efi;
+module.exports = gerencianet;
