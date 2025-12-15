@@ -1,4 +1,4 @@
-const Gerencianet = require('gn-api-sdk-node');
+const EfiPay = require('efi-api-sdk-node');
 const path = require('path');
 
 const certPath = path.resolve(__dirname, '../../certs/efi-cert.p12');
@@ -10,6 +10,6 @@ const options = {
   certificate: certPath
 };
 
-const gerencianet = new Gerencianet(options);
+const efi = new EfiPay(options);
 
-module.exports = gerencianet;
+module.exports = efi;
