@@ -9,7 +9,8 @@ const path = require('path');
  */
 console.log('📁 Inicializando efiPix.service.js');
 
-const certPath = path.resolve(__dirname, '../../certs/efi-cert.p12');
+const certPath = '/etc/secrets/efi-cert.p12';  // Caminho correto no Render
+
 console.log('📄 Caminho esperado do certificado:', certPath);
 
 let agent;
