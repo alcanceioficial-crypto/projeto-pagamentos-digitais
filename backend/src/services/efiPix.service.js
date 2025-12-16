@@ -1,32 +1,27 @@
-console.log('📁 Inicializando efiPix.service.js');
-
 const axios = require('axios');
 const https = require('https');
 const fs = require('fs');
 
-const certPath = '/etc/secrets/efi-cert.p12';
+console.log('📁 Inicializando efiPix.service.js');
 
-console.log('📄 Caminho esperado do certificado:', certPath);
+const CERT_PATH = '/etc/secrets/efi-cert.p12';
 
-let agent;
-try {
-  agent = new https.Agent({
-    pfx: fs.readFileSync(certPath),
-    passphrase: process.env.EFI_CERT_PASSPHRASE,
-    rejectUnauthorized: true
-  });
+console.log('📄 Caminho do certificado:', CERT_PATH);
 
-  console.log('✅ Certificado .p12 carregado com sucesso');
-} catch (err) {
-  console.error('❌ ERRO AO CARREGAR CERTIFICADO .p12');
-  console.error(err.message);
-}
+// 🔐 HTTPS AGENT (mTLS)
+const httpsAgent = new https.Agent({
+  pfx: fs.readFileSync(CERT_PATH),
+  passphrase: process.env.EFI_CERT_PASSPHRASE || '',
+  rejectUnauthorized: true
+});
 
+// 🌐 BASE URL CORRETA
 const BASE_URL =
   process.env.EFI_ENV === 'homolog'
-    ? 'https://api-homologacao.efipay.com.br'
+    ? 'https://api-h.efipay.com.br'
     : 'https://api.efipay.com.br';
 
+// 🔑 OAuth Token
 async function getAccessToken() {
   console.log('🔐 Solicitando access token EFÍ...');
 
@@ -34,7 +29,7 @@ async function getAccessToken() {
     `${BASE_URL}/oauth/token`,
     'grant_type=client_credentials',
     {
-      httpsAgent: agent,
+      httpsAgent,
       auth: {
         username: process.env.EFI_CLIENT_ID,
         password: process.env.EFI_CLIENT_SECRET
@@ -48,12 +43,13 @@ async function getAccessToken() {
   return response.data.access_token;
 }
 
+// 💰 Criar cobrança PIX
 async function createPixCharge(amount, description) {
   console.log('💰 Criando cobrança PIX...');
 
   const token = await getAccessToken();
 
-  const charge = await axios.post(
+  const chargeResponse = await axios.post(
     `${BASE_URL}/v2/cob`,
     {
       calendario: { expiracao: 3600 },
@@ -61,7 +57,7 @@ async function createPixCharge(amount, description) {
       solicitacaoPagador: description
     },
     {
-      httpsAgent: agent,
+      httpsAgent,
       headers: {
         Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json'
@@ -69,12 +65,12 @@ async function createPixCharge(amount, description) {
     }
   );
 
-  const locId = charge.data.loc.id;
+  const locId = chargeResponse.data.loc.id;
 
-  const qrCode = await axios.get(
+  const qrResponse = await axios.get(
     `${BASE_URL}/v2/loc/${locId}/qrcode`,
     {
-      httpsAgent: agent,
+      httpsAgent,
       headers: {
         Authorization: `Bearer ${token}`
       }
@@ -82,9 +78,9 @@ async function createPixCharge(amount, description) {
   );
 
   return {
-    txid: charge.data.txid,
-    qrcode: qrCode.data.qrcode,
-    imagemQrcode: qrCode.data.imagemQrcode
+    txid: chargeResponse.data.txid,
+    qrcode: qrResponse.data.qrcode,
+    imagemQrcode: qrResponse.data.imagemQrcode
   };
 }
 
