@@ -1,53 +1,56 @@
+console.log('📁 Inicializando efiPix.service.js');
+
 const axios = require('axios');
 const https = require('https');
 const fs = require('fs');
-const path = require('path');
 
 /**
- * LOGS DE INICIALIZAÇÃO
- * Esses logs aparecem assim que o Render sobe o app
+ * CAMINHO DO CERTIFICADO NO RENDER
+ * Secret Files SEMPRE montam em /etc/secrets
  */
-console.log('📁 Inicializando efiPix.service.js');
+const CERT_PATH = '/etc/secrets/efi-cert.p12';
 
-const certPath = '/etc/secrets/efi-cert.p12';  // Caminho correto no Render
+console.log('📄 Caminho esperado do certificado:', CERT_PATH);
 
-console.log('📄 Caminho esperado do certificado:', certPath);
-
-let agent;
+/**
+ * Carrega certificado .p12
+ */
+let httpsAgent;
 
 try {
-  const certBuffer = fs.readFileSync(certPath);
-  console.log('✅ Certificado .p12 carregado com sucesso');
+  const pfxBuffer = fs.readFileSync(CERT_PATH);
 
-  agent = new https.Agent({
-    pfx: certBuffer,
-    passphrase: ''
+  httpsAgent = new https.Agent({
+    pfx: pfxBuffer,
+    passphrase: process.env.EFI_CERT_PASSPHRASE || undefined,
+    rejectUnauthorized: true
   });
 
+  console.log('✅ Certificado .p12 carregado com sucesso');
 } catch (err) {
   console.error('❌ ERRO AO CARREGAR CERTIFICADO .p12');
   console.error(err.message);
 }
 
 /**
- * URL BASE EFÍ
+ * BASE URL EFÍ
  */
-const baseURL = process.env.EFI_ENV === 'homolog'
-  ? 'https://api-h.efipay.com.br'
-  : 'https://api.efipay.com.br';
-
+const BASE_URL =
+  process.env.EFI_ENV === 'homolog'
+    ? 'https://api-homologacao.efipay.com.br'
+    : 'https://api.efipay.com.br';
 
 /**
- * OAUTH2 - TOKEN
+ * OAUTH TOKEN
  */
 async function getAccessToken() {
   console.log('🔐 Solicitando access token EFÍ...');
 
   const response = await axios.post(
-    `${baseURL}/oauth/token`,
+    `${BASE_URL}/oauth/token`,
     'grant_type=client_credentials',
     {
-      httpsAgent: agent,
+      httpsAgent,
       auth: {
         username: process.env.EFI_CLIENT_ID,
         password: process.env.EFI_CLIENT_SECRET
@@ -59,25 +62,28 @@ async function getAccessToken() {
   );
 
   console.log('✅ Access token obtido');
+
   return response.data.access_token;
 }
 
 /**
- * CRIA COBRANÇA PIX + QRCODE
+ * CRIA COBRANÇA PIX + QR CODE
  */
 async function createPixCharge(amount, description) {
+  console.log('⏳ INICIANDO createPixCharge...');
   console.log('💰 Criando cobrança PIX...');
+
   const token = await getAccessToken();
 
   const chargeResponse = await axios.post(
-    `${baseURL}/v2/cob`,
+    `${BASE_URL}/v2/cob`,
     {
       calendario: { expiracao: 3600 },
       valor: { original: Number(amount).toFixed(2) },
       solicitacaoPagador: description
     },
     {
-      httpsAgent: agent,
+      httpsAgent,
       headers: {
         Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json'
@@ -89,10 +95,12 @@ async function createPixCharge(amount, description) {
 
   const locId = chargeResponse.data.loc.id;
 
+  console.log('📸 Gerando QR Code...');
+
   const qrCodeResponse = await axios.get(
-    `${baseURL}/v2/loc/${locId}/qrcode`,
+    `${BASE_URL}/v2/loc/${locId}/qrcode`,
     {
-      httpsAgent: agent,
+      httpsAgent,
       headers: {
         Authorization: `Bearer ${token}`
       }
