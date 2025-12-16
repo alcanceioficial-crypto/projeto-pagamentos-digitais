@@ -1,21 +1,47 @@
 const axios = require('axios');
 const https = require('https');
 const fs = require('fs');
+const path = require('path');
 
-const certPath = '/etc/secrets/efi-cert.p12';
+/**
+ * LOGS DE INICIALIZAÇÃO
+ * Esses logs aparecem assim que o Render sobe o app
+ */
+console.log('📁 Inicializando efiPix.service.js');
 
-const agent = new https.Agent({
-  pfx: fs.readFileSync(certPath),
-  passphrase: ''
-});
+const certPath = path.resolve(__dirname, '../../certs/efi-cert.p12');
+console.log('📄 Caminho esperado do certificado:', certPath);
 
+let agent;
 
+try {
+  const certBuffer = fs.readFileSync(certPath);
+  console.log('✅ Certificado .p12 carregado com sucesso');
+
+  agent = new https.Agent({
+    pfx: certBuffer,
+    passphrase: ''
+  });
+
+} catch (err) {
+  console.error('❌ ERRO AO CARREGAR CERTIFICADO .p12');
+  console.error(err.message);
+}
+
+/**
+ * URL BASE EFÍ
+ */
 const baseURL =
   process.env.EFI_ENV === 'homolog'
     ? 'https://api-homologacao.efipay.com.br'
     : 'https://api.efipay.com.br';
 
+/**
+ * OAUTH2 - TOKEN
+ */
 async function getAccessToken() {
+  console.log('🔐 Solicitando access token EFÍ...');
+
   const response = await axios.post(
     `${baseURL}/oauth/token`,
     'grant_type=client_credentials',
@@ -31,13 +57,18 @@ async function getAccessToken() {
     }
   );
 
+  console.log('✅ Access token obtido');
   return response.data.access_token;
 }
 
+/**
+ * CRIA COBRANÇA PIX + QRCODE
+ */
 async function createPixCharge(amount, description) {
+  console.log('💰 Criando cobrança PIX...');
   const token = await getAccessToken();
 
-  const charge = await axios.post(
+  const chargeResponse = await axios.post(
     `${baseURL}/v2/cob`,
     {
       calendario: { expiracao: 3600 },
@@ -53,9 +84,11 @@ async function createPixCharge(amount, description) {
     }
   );
 
-  const locId = charge.data.loc.id;
+  console.log('✅ Cobrança PIX criada');
 
-  const qrCode = await axios.get(
+  const locId = chargeResponse.data.loc.id;
+
+  const qrCodeResponse = await axios.get(
     `${baseURL}/v2/loc/${locId}/qrcode`,
     {
       httpsAgent: agent,
@@ -65,10 +98,12 @@ async function createPixCharge(amount, description) {
     }
   );
 
+  console.log('✅ QR Code gerado');
+
   return {
-    txid: charge.data.txid,
-    qrcode: qrCode.data.qrcode,
-    imagemQrcode: qrCode.data.imagemQrcode
+    txid: chargeResponse.data.txid,
+    qrcode: qrCodeResponse.data.qrcode,
+    imagemQrcode: qrCodeResponse.data.imagemQrcode
   };
 }
 
