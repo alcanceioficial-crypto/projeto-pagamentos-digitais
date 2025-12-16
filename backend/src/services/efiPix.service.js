@@ -20,11 +20,10 @@ let httpsAgent;
 try {
   const pfxBuffer = fs.readFileSync(CERT_PATH);
 
-  httpsAgent = new https.Agent({
-    pfx: pfxBuffer,
-    passphrase: process.env.EFI_CERT_PASSPHRASE || undefined,
-    rejectUnauthorized: true
-  });
+  const agent = new https.Agent({
+  pfx: fs.readFileSync('/etc/secrets/efi-cert.p12'),
+  rejectUnauthorized: true
+});
 
   console.log('✅ Certificado .p12 carregado com sucesso');
 } catch (err) {
