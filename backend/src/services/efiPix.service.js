@@ -1,118 +1,91 @@
-import fs from 'fs';
-import https from 'https';
-import axios from 'axios';
-import qs from 'qs';
-
-/**
- * ============================================
- * CONFIGURAÇÕES GERAIS
- * ============================================
- */
-
 console.log('📁 Inicializando efiPix.service.js');
 
-const CERT_PATH = '/etc/secrets/efi-cert.p12';
+const axios = require('axios');
+const https = require('https');
+const fs = require('fs');
 
-console.log('📄 Caminho esperado do certificado:', CERT_PATH);
+const certPath = '/etc/secrets/efi-cert.p12';
 
-// Validação do certificado
-let pfx;
+console.log('📄 Caminho esperado do certificado:', certPath);
+
+let agent;
 try {
-  pfx = fs.readFileSync(CERT_PATH);
+  agent = new https.Agent({
+    pfx: fs.readFileSync(certPath),
+    passphrase: process.env.EFI_CERT_PASSPHRASE,
+    rejectUnauthorized: true
+  });
+
   console.log('✅ Certificado .p12 carregado com sucesso');
 } catch (err) {
   console.error('❌ ERRO AO CARREGAR CERTIFICADO .p12');
-  throw err;
+  console.error(err.message);
 }
 
-// HTTPS Agent (EFÍ exige mTLS)
-const httpsAgent = new https.Agent({
-  pfx,
-  passphrase: process.env.EFI_CERT_PASSPHRASE || '',
-  rejectUnauthorized: true
-});
-
-// Base URL EFÍ
-const baseURL =
+const BASE_URL =
   process.env.EFI_ENV === 'homolog'
-    ? 'https://apis-homologacao.efipay.com.br'
-    : 'https://apis.efipay.com.br';
+    ? 'https://api-homologacao.efipay.com.br'
+    : 'https://api.efipay.com.br';
 
-/**
- * ============================================
- * OAUTH – ACCESS TOKEN
- * ============================================
- */
 async function getAccessToken() {
   console.log('🔐 Solicitando access token EFÍ...');
 
-  const auth = Buffer.from(
-    `${process.env.EFI_CLIENT_ID}:${process.env.EFI_CLIENT_SECRET}`
-  ).toString('base64');
-
-  try {
-    const response = await axios.post(
-      `${baseURL}/oauth/token`,
-      qs.stringify({ grant_type: 'client_credentials' }),
-      {
-        headers: {
-          Authorization: `Basic ${auth}`,
-          'Content-Type': 'application/x-www-form-urlencoded'
-        },
-        httpsAgent
+  const response = await axios.post(
+    `${BASE_URL}/oauth/token`,
+    'grant_type=client_credentials',
+    {
+      httpsAgent: agent,
+      auth: {
+        username: process.env.EFI_CLIENT_ID,
+        password: process.env.EFI_CLIENT_SECRET
+      },
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded'
       }
-    );
+    }
+  );
 
-    console.log('✅ Access token obtido com sucesso');
-    return response.data.access_token;
-  } catch (error) {
-    console.error('🔥 ERRO AO OBTER TOKEN');
-    console.error('MESSAGE:', error.message);
-    console.error('STATUS:', error.response?.status);
-    console.error('DATA:', error.response?.data);
-    throw error;
-  }
+  return response.data.access_token;
 }
 
-/**
- * ============================================
- * CRIAR COBRANÇA PIX
- * ============================================
- */
-export async function createPixCharge({ amount, description }) {
+async function createPixCharge(amount, description) {
   console.log('💰 Criando cobrança PIX...');
 
-  const accessToken = await getAccessToken();
+  const token = await getAccessToken();
 
-  try {
-    const response = await axios.post(
-      `${baseURL}/v2/cob`,
-      {
-        calendario: {
-          expiracao: 3600
-        },
-        valor: {
-          original: Number(amount).toFixed(2)
-        },
-        chave: process.env.EFI_PIX_KEY,
-        solicitacaoPagador: description
-      },
-      {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          'Content-Type': 'application/json'
-        },
-        httpsAgent
+  const charge = await axios.post(
+    `${BASE_URL}/v2/cob`,
+    {
+      calendario: { expiracao: 3600 },
+      valor: { original: Number(amount).toFixed(2) },
+      solicitacaoPagador: description
+    },
+    {
+      httpsAgent: agent,
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json'
       }
-    );
+    }
+  );
 
-    console.log('✅ Cobrança PIX criada com sucesso');
-    return response.data;
-  } catch (error) {
-    console.error('🔥 ERRO AO CRIAR COBRANÇA PIX');
-    console.error('MESSAGE:', error.message);
-    console.error('STATUS:', error.response?.status);
-    console.error('DATA:', error.response?.data);
-    throw error;
-  }
+  const locId = charge.data.loc.id;
+
+  const qrCode = await axios.get(
+    `${BASE_URL}/v2/loc/${locId}/qrcode`,
+    {
+      httpsAgent: agent,
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    }
+  );
+
+  return {
+    txid: charge.data.txid,
+    qrcode: qrCode.data.qrcode,
+    imagemQrcode: qrCode.data.imagemQrcode
+  };
 }
+
+module.exports = { createPixCharge };
