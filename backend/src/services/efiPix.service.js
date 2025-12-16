@@ -31,10 +31,10 @@ try {
 /**
  * URL BASE EFÍ
  */
-const baseURL =
-  process.env.EFI_ENV === 'homolog'
-    ? 'https://api-homologacao.efipay.com.br'
-    : 'https://api.efipay.com.br';
+const baseURL = process.env.EFI_ENV === 'homolog'
+  ? 'https://api-h.efipay.com.br'
+  : 'https://api.efipay.com.br';
+
 
 /**
  * OAUTH2 - TOKEN
