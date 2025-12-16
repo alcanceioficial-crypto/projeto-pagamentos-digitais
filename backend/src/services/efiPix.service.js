@@ -6,22 +6,23 @@ console.log('📁 Inicializando efiPix.service.js');
 
 const CERT_PATH = '/etc/secrets/efi-cert.p12';
 
-console.log('📄 Caminho do certificado:', CERT_PATH);
+if (!fs.existsSync(CERT_PATH)) {
+  console.error('❌ Certificado NÃO encontrado em', CERT_PATH);
+} else {
+  console.log('📄 Certificado encontrado em', CERT_PATH);
+}
 
-// 🔐 HTTPS AGENT (mTLS)
-const httpsAgent = new https.Agent({
+const agent = new https.Agent({
   pfx: fs.readFileSync(CERT_PATH),
-  passphrase: process.env.EFI_CERT_PASSPHRASE || '',
+  passphrase: process.env.EFI_CERT_PASSPHRASE,
   rejectUnauthorized: true
 });
 
-// 🌐 BASE URL CORRETA
 const BASE_URL =
   process.env.EFI_ENV === 'homolog'
-    ? 'https://api-h.efipay.com.br'
+    ? 'https://api-homologacao.efipay.com.br'
     : 'https://api.efipay.com.br';
 
-// 🔑 OAuth Token
 async function getAccessToken() {
   console.log('🔐 Solicitando access token EFÍ...');
 
@@ -29,7 +30,7 @@ async function getAccessToken() {
     `${BASE_URL}/oauth/token`,
     'grant_type=client_credentials',
     {
-      httpsAgent,
+      httpsAgent: agent,
       auth: {
         username: process.env.EFI_CLIENT_ID,
         password: process.env.EFI_CLIENT_SECRET
@@ -43,13 +44,12 @@ async function getAccessToken() {
   return response.data.access_token;
 }
 
-// 💰 Criar cobrança PIX
 async function createPixCharge(amount, description) {
   console.log('💰 Criando cobrança PIX...');
 
   const token = await getAccessToken();
 
-  const chargeResponse = await axios.post(
+  const charge = await axios.post(
     `${BASE_URL}/v2/cob`,
     {
       calendario: { expiracao: 3600 },
@@ -57,7 +57,7 @@ async function createPixCharge(amount, description) {
       solicitacaoPagador: description
     },
     {
-      httpsAgent,
+      httpsAgent: agent,
       headers: {
         Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json'
@@ -65,12 +65,12 @@ async function createPixCharge(amount, description) {
     }
   );
 
-  const locId = chargeResponse.data.loc.id;
+  const locId = charge.data.loc.id;
 
-  const qrResponse = await axios.get(
+  const qrCode = await axios.get(
     `${BASE_URL}/v2/loc/${locId}/qrcode`,
     {
-      httpsAgent,
+      httpsAgent: agent,
       headers: {
         Authorization: `Bearer ${token}`
       }
@@ -78,9 +78,9 @@ async function createPixCharge(amount, description) {
   );
 
   return {
-    txid: chargeResponse.data.txid,
-    qrcode: qrResponse.data.qrcode,
-    imagemQrcode: qrResponse.data.imagemQrcode
+    txid: charge.data.txid,
+    qrcode: qrCode.data.qrcode,
+    imagemQrcode: qrCode.data.imagemQrcode
   };
 }
 
