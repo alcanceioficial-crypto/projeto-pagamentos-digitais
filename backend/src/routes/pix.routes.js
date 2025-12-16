@@ -3,7 +3,6 @@ const router = express.Router();
 
 const { createPixCharge } = require('../services/efiPix.service');
 
-// POST /pix/create
 router.post('/create', async (req, res) => {
   console.log('➡️ ROTA /pix/create CHAMADA');
   console.log('📦 BODY RECEBIDO:', req.body);
@@ -17,10 +16,11 @@ router.post('/create', async (req, res) => {
   }
 
   try {
+    console.log('💰 Criando cobrança PIX...');
     const pix = await createPixCharge(amount, description);
     return res.json(pix);
   } catch (error) {
-    console.error('❌ ERRO AO GERAR PIX:', error.message);
+    console.error('🔥 ERRO AO GERAR PIX:', error.message);
     return res.status(500).json({
       error: 'Erro ao gerar cobrança PIX',
       detalhes: error.message
@@ -28,4 +28,4 @@ router.post('/create', async (req, res) => {
   }
 });
 
-module.exports = router; // 🚨 ISSO É O PONTO-CHAVE
+module.exports = router;
