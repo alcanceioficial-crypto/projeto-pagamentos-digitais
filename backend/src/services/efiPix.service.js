@@ -1,14 +1,14 @@
 const axios = require('axios');
 const https = require('https');
 const fs = require('fs');
-const path = require('path');
 
-const certPath = path.resolve(__dirname, '../../certs/efi-cert.p12');
+const certPath = '/etc/secrets/efi-cert.p12';
 
 const agent = new https.Agent({
   pfx: fs.readFileSync(certPath),
   passphrase: ''
 });
+
 
 const baseURL =
   process.env.EFI_ENV === 'homolog'
