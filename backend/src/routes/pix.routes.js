@@ -21,13 +21,10 @@ router.post('/create', async (req, res) => {
 
   } catch (error) {
     console.error('🔥 ERRO PIX - MESSAGE:', error.message);
-    console.error('🔥 ERRO PIX - RESPONSE:', error.response?.data);
-    console.error('🔥 ERRO PIX - STATUS:', error.response?.status);
-    console.error('🔥 ERRO PIX - CONFIG URL:', error.config?.url);
 
     return res.status(500).json({
       error: 'Erro ao gerar cobrança PIX',
-      detalhes: error.response?.data || error.message
+      detalhes: error.message
     });
   }
 });
