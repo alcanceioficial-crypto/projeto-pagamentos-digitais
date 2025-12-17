@@ -7,36 +7,39 @@ console.log('📁 Inicializando efiPix.service.js');
 const CERT_PATH = '/etc/secrets/efi-cert.p12';
 
 if (!fs.existsSync(CERT_PATH)) {
-  console.error(`❌ Certificado NÃO encontrado em ${CERT_PATH}`);
-  process.exit(1);
+  console.error('❌ Certificado NÃO encontrado em', CERT_PATH);
+} else {
+  console.log('📄 Certificado encontrado em', CERT_PATH);
 }
 
-console.log(`📄 Certificado encontrado em ${CERT_PATH}`);
-
-const httpsAgent = new https.Agent({
-  pfx: fs.readFileSync(CERT_PATH),
-  rejectUnauthorized: true
+/**
+ * ⚠️ AGENT DE TESTE
+ * Use APENAS para diagnóstico
+ * REMOVER depois
+ */
+const agent = new https.Agent({
+  rejectUnauthorized: false
 });
 
+// =============================
+// CONFIGURAÇÕES EFÍ
+// =============================
 const BASE_URL =
   process.env.EFI_ENV === 'production'
     ? 'https://api.efipay.com.br'
     : 'https://api-homologacao.efipay.com.br';
 
 async function getAccessToken() {
-  console.log('🔐 Solicitando access token EFÍ...');
-
-  const auth = Buffer.from(
-    `${process.env.EFI_CLIENT_ID}:${process.env.EFI_CLIENT_SECRET}`
-  ).toString('base64');
-
   const response = await axios.post(
     `${BASE_URL}/oauth/token`,
     'grant_type=client_credentials',
     {
-      httpsAgent, // 🔥 AQUI É O ÚNICO LUGAR CORRETO
+      httpsAgent: agent,
+      auth: {
+        username: process.env.EFI_CLIENT_ID,
+        password: process.env.EFI_CLIENT_SECRET
+      },
       headers: {
-        Authorization: `Basic ${auth}`,
         'Content-Type': 'application/x-www-form-urlencoded'
       }
     }
@@ -45,10 +48,8 @@ async function getAccessToken() {
   return response.data.access_token;
 }
 
-async function createPixCharge({ amount, description }) {
-  console.log('💰 Criando cobrança PIX...');
-
-  const accessToken = await getAccessToken();
+async function createPixCharge(amount, description) {
+  const token = await getAccessToken();
 
   const response = await axios.post(
     `${BASE_URL}/v2/cob`,
@@ -59,9 +60,9 @@ async function createPixCharge({ amount, description }) {
       solicitacaoPagador: description
     },
     {
-      httpsAgent, // 🔥 AQUI TAMBÉM
+      httpsAgent: agent,
       headers: {
-        Authorization: `Bearer ${accessToken}`,
+        Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json'
       }
     }
