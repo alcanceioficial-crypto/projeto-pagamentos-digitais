@@ -12,24 +12,18 @@ if (!fs.existsSync(CERT_PATH)) {
   console.log('📄 Certificado encontrado em', CERT_PATH);
 }
 
-/**
- * ⚠️ AGENT DE TESTE
- * Use APENAS para diagnóstico
- * REMOVER depois
- */
 const agent = new https.Agent({
-  rejectUnauthorized: false
+  pfx: fs.readFileSync(CERT_PATH),
+  passphrase: undefined, // EFÍ NÃO usa senha no .p12
+  rejectUnauthorized: true
 });
 
-// =============================
-// CONFIGURAÇÕES EFÍ
-// =============================
-const BASE_URL =
-  process.env.EFI_ENV === 'production'
-    ? 'https://api.efipay.com.br'
-    : 'https://api-homologacao.efipay.com.br';
+// 🔥 PRODUÇÃO EFÍ (NÃO HOMOLOGAÇÃO)
+const BASE_URL = 'https://api.efipay.com.br';
 
 async function getAccessToken() {
+  console.log('🔐 Solicitando access token EFÍ...');
+
   const response = await axios.post(
     `${BASE_URL}/oauth/token`,
     'grant_type=client_credentials',
@@ -49,14 +43,15 @@ async function getAccessToken() {
 }
 
 async function createPixCharge(amount, description) {
+  console.log('💰 Criando cobrança PIX...');
+
   const token = await getAccessToken();
 
-  const response = await axios.post(
+  const chargeResponse = await axios.post(
     `${BASE_URL}/v2/cob`,
     {
       calendario: { expiracao: 3600 },
-      valor: { original: amount.toFixed(2) },
-      chave: process.env.EFI_PIX_KEY,
+      valor: { original: Number(amount).toFixed(2) },
       solicitacaoPagador: description
     },
     {
@@ -68,9 +63,23 @@ async function createPixCharge(amount, description) {
     }
   );
 
-  return response.data;
+  const locId = chargeResponse.data.loc.id;
+
+  const qrCodeResponse = await axios.get(
+    `${BASE_URL}/v2/loc/${locId}/qrcode`,
+    {
+      httpsAgent: agent,
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    }
+  );
+
+  return {
+    txid: chargeResponse.data.txid,
+    qrcode: qrCodeResponse.data.qrcode,
+    imagemQrcode: qrCodeResponse.data.imagemQrcode
+  };
 }
 
-module.exports = {
-  createPixCharge
-};
+module.exports = { createPixCharge };
