@@ -1,31 +1,28 @@
-const express = require('express');
-const router = express.Router();
+const express = require('express')
+const router = express.Router()
 
-const { createPixCharge } = require('../services/efiPix.service');
+const { createPixCharge } = require('../services/efiPix.service')
 
 router.post('/create', async (req, res) => {
-  console.log('➡️ ROTA /pix/create CHAMADA');
-  console.log('📦 BODY RECEBIDO:', req.body);
-
-  const { amount, description } = req.body;
-
-  if (!amount || !description) {
-    return res.status(400).json({
-      error: 'amount e description são obrigatórios'
-    });
-  }
-
   try {
-    console.log('💰 Criando cobrança PIX...');
-    const pix = await createPixCharge(amount, description);
-    return res.json(pix);
-  } catch (error) {
-    console.error('🔥 ERRO AO GERAR PIX:', error.message);
-    return res.status(500).json({
-      error: 'Erro ao gerar cobrança PIX',
-      detalhes: error.message
-    });
-  }
-});
+    const { amount, description } = req.body
 
-module.exports = router;
+    if (!amount || !description) {
+      return res.status(400).json({
+        error: 'amount e description são obrigatórios',
+      })
+    }
+
+    const charge = await createPixCharge({ amount, description })
+
+    res.json(charge)
+  } catch (err) {
+    console.error('🔥 ERRO AO GERAR PIX:', err.message)
+    res.status(500).json({
+      error: 'Erro ao gerar cobrança PIX',
+      detalhes: err.message,
+    })
+  }
+})
+
+module.exports = router
