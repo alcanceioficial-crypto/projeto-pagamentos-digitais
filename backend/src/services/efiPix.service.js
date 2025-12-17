@@ -1,102 +1,130 @@
 const fs = require('fs');
 const https = require('https');
 const axios = require('axios');
+const qs = require('querystring');
 
 /**
- * ===============================
+ * ==========================
  * CONFIGURAÇÃO DE AMBIENTE
- * ===============================
+ * ==========================
  */
-const EFI_ENV = process.env.EFI_ENV || 'homolog';
+
+const ENV = process.env.EFI_ENV || 'homolog';
 
 const BASE_URL =
-  EFI_ENV === 'production'
+  ENV === 'production'
     ? 'https://pix.api.efipay.com.br'
     : 'https://pix-h.api.efipay.com.br';
 
-console.log('🌍 Ambiente:', EFI_ENV);
+const CERT_PATH = process.env.EFI_CERT_PATH || '/etc/secrets/efi-cert.p12';
+
+console.log('📁 Inicializando efiPix.service.js');
+console.log('🌍 Ambiente:', ENV);
 console.log('🌐 Base URL:', BASE_URL);
-console.log('📄 Certificado: /etc/secrets/efi-cert.p12');
+console.log('📄 Certificado:', CERT_PATH);
 
 /**
- * ===============================
- * CERTIFICADO (.p12 em Base64)
- * ===============================
+ * ==========================
+ * CERTIFICADO
+ * ==========================
  */
-if (!fs.existsSync('/etc/secrets/efi-cert.p12')) {
-  throw new Error('❌ Certificado PIX não encontrado em /etc/secrets/efi-cert.p12');
+
+if (!fs.existsSync(CERT_PATH)) {
+  throw new Error(`❌ Certificado NÃO encontrado em ${CERT_PATH}`);
 }
 
-const certBase64 = fs.readFileSync('/etc/secrets/efi-cert.p12', 'utf8');
-
 const httpsAgent = new https.Agent({
-  pfx: Buffer.from(certBase64, 'base64'),
-  rejectUnauthorized: true
+  pfx: fs.readFileSync(CERT_PATH),
+  passphrase: process.env.EFI_CERT_PASSPHRASE || undefined,
 });
 
 /**
- * ===============================
- * OBTÉM ACCESS TOKEN EFÍ
- * ===============================
+ * ==========================
+ * TOKEN OAUTH
+ * ==========================
  */
 async function getAccessToken() {
+  console.log('🔐 Solicitando access token EFÍ...');
+
   const auth = Buffer.from(
     `${process.env.EFI_CLIENT_ID}:${process.env.EFI_CLIENT_SECRET}`
   ).toString('base64');
 
-  const response = await axios.post(
-    `${BASE_URL}/oauth/token`,
-    { grant_type: 'client_credentials' },
-    {
-      httpsAgent,
-      headers: {
-        Authorization: `Basic ${auth}`,
-        'Content-Type': 'application/json'
+  try {
+    const response = await axios.post(
+      `${BASE_URL}/oauth/token`,
+      qs.stringify({ grant_type: 'client_credentials' }),
+      {
+        headers: {
+          Authorization: `Basic ${auth}`,
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        httpsAgent,
+        timeout: 15000,
       }
-    }
-  );
+    );
 
-  return response.data.access_token;
+    console.log('✅ Token obtido');
+    return response.data.access_token;
+  } catch (error) {
+    console.error(
+      '🔥 ERRO TOKEN:',
+      error?.response?.data || error.message
+    );
+    throw error;
+  }
 }
 
 /**
- * ===============================
+ * ==========================
  * CRIAR COBRANÇA PIX
- * ===============================
+ * ==========================
  */
 async function createPixCharge({ amount, description }) {
-  if (!amount || !description) {
-    throw new Error('amount e description são obrigatórios');
-  }
+  console.log('💰 Criando cobrança PIX...');
 
   const accessToken = await getAccessToken();
 
-  const body = {
+  const payload = {
     calendario: {
-      expiracao: 3600
+      expiracao: 3600,
     },
     valor: {
-      original: amount.toFixed(2)
+      original: amount.toFixed(2),
     },
     chave: process.env.EFI_PIX_KEY,
-    solicitacaoPagador: description
+    solicitacaoPagador: description,
   };
 
-  const response = await axios.post(
-    `${BASE_URL}/v2/cob`,
-    body,
-    {
-      httpsAgent,
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        'Content-Type': 'application/json'
-      }
-    }
-  );
+  try {
+    console.log('📤 Enviando cobrança para EFÍ...');
+    console.log('📦 Payload:', payload);
 
-  return response.data;
+    const response = await axios.post(
+      `${BASE_URL}/v2/cob`,
+      payload,
+      {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        httpsAgent,
+        timeout: 15000,
+      }
+    );
+
+    console.log('✅ PIX CRIADO COM SUCESSO');
+    return response.data;
+
+  } catch (error) {
+    console.error(
+      '🔥 ERRO PIX:',
+      error?.response?.data || error.message
+    );
+    throw error;
+  }
 }
 
 module.exports = {
-  createPixCharge
+  createPixCharge,
 };
