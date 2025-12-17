@@ -1,15 +1,7 @@
-const axios = require('axios');
-const https = require('https');
 const fs = require('fs');
 const path = require('path');
+const axios = require('axios');
 
-console.log('📁 Inicializando efiPix.service.js');
-
-/**
- * ======================================================
- *  CONFIGURAÇÕES DE AMBIENTE
- * ======================================================
- */
 const EFI_ENV = process.env.EFI_ENV || 'homolog';
 
 const BASE_URL =
@@ -19,44 +11,38 @@ const BASE_URL =
 
 const CERT_PATH = '/etc/secrets/efi-cert.p12';
 
+console.log('📁 Inicializando efiPix.service.js');
+console.log('🌍 Ambiente:', EFI_ENV);
+console.log('🌐 Base URL:', BASE_URL);
+console.log('📄 Certificado:', CERT_PATH);
+
 if (!fs.existsSync(CERT_PATH)) {
-  console.error(`❌ Certificado NÃO encontrado em ${CERT_PATH}`);
-  process.exit(1);
+  throw new Error('❌ Certificado .p12 não encontrado');
 }
 
-console.log(`📄 Certificado encontrado em ${CERT_PATH}`);
+const certBuffer = fs.readFileSync(CERT_PATH);
 
-/**
- * ======================================================
- *  HTTPS AGENT (mTLS EFÍ)
- * ======================================================
- */
-const agent = new https.Agent({
-  pfx: fs.readFileSync(CERT_PATH),
-
-  // 👉 Se o certificado NÃO tem senha, deixe undefined
-  passphrase: process.env.EFI_CERT_PASSPHRASE || undefined
+const axiosInstance = axios.create({
+  baseURL: BASE_URL,
+  timeout: 15000,
+  httpsAgent: new (require('https').Agent)({
+    pfx: certBuffer,
+    passphrase: undefined,
+    rejectUnauthorized: true
+  })
 });
 
-/**
- * ======================================================
- *  OBTÉM ACCESS TOKEN (SEM header duplicado)
- * ======================================================
- */
 async function getAccessToken() {
-  console.log('🔐 Solicitando access token EFÍ...');
-
-  const credentials = Buffer.from(
+  const auth = Buffer.from(
     `${process.env.EFI_CLIENT_ID}:${process.env.EFI_CLIENT_SECRET}`
   ).toString('base64');
 
-  const response = await axios.post(
-    `${BASE_URL}/oauth/token`,
+  const response = await axiosInstance.post(
+    '/oauth/token',
     'grant_type=client_credentials',
     {
-      httpsAgent: agent,
       headers: {
-        Authorization: `Basic ${credentials}`,
+        Authorization: `Basic ${auth}`,
         'Content-Type': 'application/x-www-form-urlencoded'
       }
     }
@@ -65,58 +51,33 @@ async function getAccessToken() {
   return response.data.access_token;
 }
 
-/**
- * ======================================================
- *  CRIA COBRANÇA PIX IMEDIATA
- * ======================================================
- */
-async function createPixCharge(amount, description) {
-  try {
-    console.log('💰 Criando cobrança PIX...');
+async function createPixCharge({ amount, description }) {
+  const token = await getAccessToken();
 
-    const accessToken = await getAccessToken();
+  const payload = {
+    calendario: {
+      expiracao: 3600
+    },
+    valor: {
+      original: amount.toFixed(2)
+    },
+    chave: process.env.EFI_PIX_KEY,
+    solicitacaoPagador: description
+  };
 
-    const body = {
-      calendario: {
-        expiracao: 3600
-      },
-      valor: {
-        original: amount.toFixed(2)
-      },
-      chave: process.env.EFI_PIX_KEY,
-      solicitacaoPagador: description
-    };
-
-    const response = await axios.post(
-      `${BASE_URL}/v2/cob`,
-      body,
-      {
-        httpsAgent: agent,
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          'Content-Type': 'application/json'
-        }
+  const response = await axiosInstance.post(
+    '/v2/cob',
+    payload,
+    {
+      headers: {
+        Authorization: `Bearer ${token}`
       }
-    );
-
-    return response.data;
-  } catch (error) {
-    console.error('🔥 ERRO AO GERAR PIX:', error.message);
-
-    if (error.response) {
-      console.error('🔥 STATUS:', error.response.status);
-      console.error('🔥 DATA:', error.response.data);
     }
+  );
 
-    throw new Error(error.message);
-  }
+  return response.data;
 }
 
-/**
- * ======================================================
- *  EXPORTS
- * ======================================================
- */
 module.exports = {
   createPixCharge
 };
