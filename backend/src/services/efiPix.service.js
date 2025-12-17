@@ -1,62 +1,36 @@
-const fs = require('fs');
-const https = require('https');
-const axios = require('axios');
+const EfiPay = require('sdk-node-apis-efi')
 
-const BASE_URL = 'https://api-homologacao.efipay.com.br';
-const CERT_PATH = '/etc/secrets/efi-cert.p12';
+const isHomolog = process.env.EFI_ENV === 'homolog'
 
-console.log('📁 Inicializando efiPix.service.js');
+console.log('🌍 Ambiente:', isHomolog ? 'homolog' : 'produção')
+console.log('📄 Certificado:', '/etc/secrets/efi-cert.p12')
 
-const agent = new https.Agent({
-  pfx: fs.readFileSync(CERT_PATH),
-  passphrase: process.env.EFI_CERT_PASSPHRASE,
-  rejectUnauthorized: true
-});
-
-const axiosInstance = axios.create({
-  baseURL: BASE_URL,
-  httpsAgent: agent,
-  timeout: 15000
-});
-
-async function getAccessToken() {
-  const auth = Buffer.from(
-    `${process.env.EFI_CLIENT_ID}:${process.env.EFI_CLIENT_SECRET}`
-  ).toString('base64');
-
-  const response = await axiosInstance.post(
-    '/oauth/token',
-    'grant_type=client_credentials',
-    {
-      headers: {
-        Authorization: `Basic ${auth}`,
-        'Content-Type': 'application/x-www-form-urlencoded'
-      }
-    }
-  );
-
-  return response.data.access_token;
+const options = {
+  sandbox: isHomolog,
+  client_id: process.env.EFI_CLIENT_ID,
+  client_secret: process.env.EFI_CLIENT_SECRET,
+  certificate: '/etc/secrets/efi-cert.p12',
 }
+
+const efipay = new EfiPay(options)
 
 async function createPixCharge({ amount, description }) {
-  const token = await getAccessToken();
+  const valor = Math.round(Number(amount) * 100)
 
-  const response = await axiosInstance.post(
-    '/v2/cob',
-    {
-      calendario: { expiracao: 3600 },
-      valor: { original: amount.toFixed(2) },
-      chave: process.env.EFI_PIX_KEY,
-      solicitacaoPagador: description
+  const body = {
+    calendario: {
+      expiracao: 3600,
     },
-    {
-      headers: {
-        Authorization: `Bearer ${token}`
-      }
-    }
-  );
+    valor: {
+      original: (valor / 100).toFixed(2),
+    },
+    chave: process.env.EFI_PIX_KEY,
+    solicitacaoPagador: description,
+  }
 
-  return response.data;
+  return efipay.pixCreateImmediateCharge([], body)
 }
 
-module.exports = { createPixCharge };
+module.exports = {
+  createPixCharge,
+}
