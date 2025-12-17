@@ -14,7 +14,6 @@ if (!fs.existsSync(CERT_PATH)) {
 
 const agent = new https.Agent({
   pfx: fs.readFileSync(CERT_PATH),
-  passphrase: process.env.EFI_CERT_PASSPHRASE,
   rejectUnauthorized: true
 });
 
