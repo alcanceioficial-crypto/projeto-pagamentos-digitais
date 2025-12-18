@@ -1,130 +1,95 @@
-const fs = require('fs');
-const https = require('https');
 const axios = require('axios');
-const qs = require('querystring');
-
-/**
- * ==========================
- * CONFIGURAÇÃO DE AMBIENTE
- * ==========================
- */
-
-const ENV = process.env.EFI_ENV || 'homolog';
-
-const BASE_URL =
-  ENV === 'production'
-    ? 'https://pix.api.efipay.com.br'
-    : 'https://pix-h.api.efipay.com.br';
-
-const CERT_PATH = process.env.EFI_CERT_PATH || '/etc/secrets/efi-cert.p12';
+const https = require('https');
+const fs = require('fs');
 
 console.log('📁 Inicializando efiPix.service.js');
-console.log('🌍 Ambiente:', ENV);
-console.log('🌐 Base URL:', BASE_URL);
-console.log('📄 Certificado:', CERT_PATH);
+
+const BASE_URL = 'https://pix-h.api.efipay.com.br';
+const CERT_PATH = '/etc/secrets/efi-cert.p12';
 
 /**
- * ==========================
- * CERTIFICADO
- * ==========================
- */
-
-if (!fs.existsSync(CERT_PATH)) {
-  throw new Error(`❌ Certificado NÃO encontrado em ${CERT_PATH}`);
-}
-
-const httpsAgent = new https.Agent({
-  pfx: fs.readFileSync(CERT_PATH),
-  passphrase: process.env.EFI_CERT_PASSPHRASE || undefined,
-});
-
-/**
- * ==========================
- * TOKEN OAUTH
- * ==========================
+ * Gera o access_token da EFÍ (Pix)
  */
 async function getAccessToken() {
-  console.log('🔐 Solicitando access token EFÍ...');
-
-  const auth = Buffer.from(
-    `${process.env.EFI_CLIENT_ID}:${process.env.EFI_CLIENT_SECRET}`
-  ).toString('base64');
-
   try {
+    console.log('🔐 Solicitando access token EFÍ...');
+
+    const httpsAgent = new https.Agent({
+      pfx: fs.readFileSync(CERT_PATH),
+      rejectUnauthorized: true
+    });
+
+    const auth = Buffer.from(
+      `${process.env.EFI_CLIENT_ID}:${process.env.EFI_CLIENT_SECRET}`
+    ).toString('base64');
+
     const response = await axios.post(
       `${BASE_URL}/oauth/token`,
-      qs.stringify({ grant_type: 'client_credentials' }),
+      'grant_type=client_credentials',
       {
         headers: {
           Authorization: `Basic ${auth}`,
-          'Content-Type': 'application/x-www-form-urlencoded',
+          'Content-Type': 'application/x-www-form-urlencoded'
         },
-        httpsAgent,
-        timeout: 15000,
+        httpsAgent
       }
     );
 
-    console.log('✅ Token obtido');
+    console.log('✅ TOKEN GERADO');
     return response.data.access_token;
-  } catch (error) {
-    console.error(
-      '🔥 ERRO TOKEN:',
-      error?.response?.data || error.message
-    );
-    throw error;
+
+  } catch (err) {
+    console.error('🔥 ERRO TOKEN:', err.response?.data || err.message);
+    throw err;
   }
 }
 
 /**
- * ==========================
- * CRIAR COBRANÇA PIX
- * ==========================
+ * Cria cobrança Pix imediata
  */
-async function createPixCharge({ amount, description }) {
-  console.log('💰 Criando cobrança PIX...');
-
-  const accessToken = await getAccessToken();
-
-  const payload = {
-    calendario: {
-      expiracao: 3600,
-    },
-    valor: {
-      original: amount.toFixed(2),
-    },
-    chave: process.env.EFI_PIX_KEY,
-    solicitacaoPagador: description,
-  };
-
+async function criarCobrancaPix(valor, descricao) {
   try {
-    console.log('📤 Enviando cobrança para EFÍ...');
-    console.log('📦 Payload:', payload);
+    console.log('💰 Criando cobrança PIX...');
+
+    const token = await getAccessToken();
+
+    const payload = {
+      calendario: {
+        expiracao: 3600
+      },
+      valor: {
+        original: valor.toFixed(2)
+      },
+      chave: process.env.EFI_PIX_KEY,
+      solicitacaoPagador: descricao
+    };
+
+    const httpsAgent = new https.Agent({
+      pfx: fs.readFileSync(CERT_PATH),
+      rejectUnauthorized: true
+    });
 
     const response = await axios.post(
       `${BASE_URL}/v2/cob`,
       payload,
       {
         headers: {
-          Authorization: `Bearer ${accessToken}`,
-          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json'
         },
-        httpsAgent,
-        timeout: 15000,
+        httpsAgent
       }
     );
 
-    console.log('✅ PIX CRIADO COM SUCESSO');
+    console.log('✅ PIX GERADO');
     return response.data;
 
-  } catch (error) {
-    console.error(
-      '🔥 ERRO PIX:',
-      error?.response?.data || error.message
-    );
-    throw error;
+  } catch (err) {
+    console.error('🔥 ERRO AO GERAR PIX:', err.response?.data || err.message);
+    throw err;
   }
 }
 
 module.exports = {
-  createPixCharge,
+  criarCobrancaPix
 };
