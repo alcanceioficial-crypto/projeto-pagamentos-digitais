@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { createPixCharge } = require('../services/efiPix.service');
+const { criarCobrancaPix } = require('../services/efiPix.service');
 
 router.post('/create', async (req, res) => {
   try {
@@ -9,15 +9,17 @@ router.post('/create', async (req, res) => {
 
     const { amount, description } = req.body;
 
-    const pix = await createPixCharge({ amount, description });
+    const pix = await criarCobrancaPix(
+      Number(amount),
+      description || 'Pagamento Pix'
+    );
 
     res.json(pix);
-  } catch (error) {
-    console.error('🔥 ERRO AO GERAR PIX:', error.message);
 
+  } catch (err) {
     res.status(500).json({
       error: 'Erro ao gerar cobrança PIX',
-      detalhes: error.message
+      detalhes: err.response?.data || err.message
     });
   }
 });
