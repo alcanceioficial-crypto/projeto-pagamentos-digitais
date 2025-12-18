@@ -1,76 +1,85 @@
 const axios = require('axios');
 const https = require('https');
 const fs = require('fs');
+const path = require('path');
 
 console.log('📁 Inicializando efiPix.service.js');
 
-const BASE_URL = 'https://pix-h.api.efipay.com.br';
-const CERT_PATH = '/etc/secrets/efi-cert.p12';
+const {
+  EFI_CLIENT_ID,
+  EFI_CLIENT_SECRET,
+  EFI_CERT_BASE64,
+  EFI_ENV
+} = process.env;
 
-/**
- * Gera o access_token da EFÍ (Pix)
- */
-async function getAccessToken() {
-  try {
-    console.log('🔐 Solicitando access token EFÍ...');
-
-    const httpsAgent = new https.Agent({
-      pfx: fs.readFileSync(CERT_PATH),
-      rejectUnauthorized: true
-    });
-
-    const auth = Buffer.from(
-      `${process.env.EFI_CLIENT_ID}:${process.env.EFI_CLIENT_SECRET}`
-    ).toString('base64');
-
-    const response = await axios.post(
-      `${BASE_URL}/oauth/token`,
-      'grant_type=client_credentials',
-      {
-        headers: {
-          Authorization: `Basic ${auth}`,
-          'Content-Type': 'application/x-www-form-urlencoded'
-        },
-        httpsAgent
-      }
-    );
-
-    console.log('✅ TOKEN GERADO');
-    return response.data.access_token;
-
-  } catch (err) {
-    console.error('🔥 ERRO TOKEN:', err.response?.data || err.message);
-    throw err;
-  }
+if (!EFI_CERT_BASE64) {
+  throw new Error('EFI_CERT_BASE64 não definido');
 }
 
-/**
- * Cria cobrança Pix imediata
- */
-async function criarCobrancaPix(valor, descricao) {
+// ===== AMBIENTE =====
+const isHomolog = EFI_ENV === 'homolog';
+
+const baseURL = isHomolog
+  ? 'https://pix-h.api.efipay.com.br'
+  : 'https://pix.api.efipay.com.br';
+
+console.log('🌍 Ambiente:', EFI_ENV);
+console.log('🌐 Base URL:', baseURL);
+
+// ===== DECODIFICA CERTIFICADO =====
+const certBuffer = Buffer.from(EFI_CERT_BASE64, 'base64');
+
+// salva em arquivo temporário (node https exige buffer OU arquivo)
+const certPath = path.join('/tmp', 'efi-cert.p12');
+fs.writeFileSync(certPath, certBuffer);
+
+console.log('📄 Certificado decodificado em:', certPath);
+
+// ===== HTTPS AGENT =====
+const httpsAgent = new https.Agent({
+  pfx: fs.readFileSync(certPath),
+  rejectUnauthorized: true
+});
+
+// ===== TOKEN =====
+async function getAccessToken() {
+  console.log('🔐 Solicitando access token EFÍ...');
+
+  const auth = Buffer.from(
+    `${EFI_CLIENT_ID}:${EFI_CLIENT_SECRET}`
+  ).toString('base64');
+
+  const response = await axios.post(
+    `${baseURL}/oauth/token`,
+    'grant_type=client_credentials',
+    {
+      headers: {
+        Authorization: `Basic ${auth}`,
+        'Content-Type': 'application/x-www-form-urlencoded'
+      },
+      httpsAgent
+    }
+  );
+
+  return response.data.access_token;
+}
+
+// ===== CRIAR COBRANÇA =====
+async function criarCobrancaPix(amount, description) {
   try {
     console.log('💰 Criando cobrança PIX...');
 
     const token = await getAccessToken();
 
     const payload = {
-      calendario: {
-        expiracao: 3600
-      },
-      valor: {
-        original: valor.toFixed(2)
-      },
+      calendario: { expiracao: 3600 },
+      valor: { original: amount.toFixed(2) },
       chave: process.env.EFI_PIX_KEY,
-      solicitacaoPagador: descricao
+      solicitacaoPagador: description
     };
 
-    const httpsAgent = new https.Agent({
-      pfx: fs.readFileSync(CERT_PATH),
-      rejectUnauthorized: true
-    });
-
     const response = await axios.post(
-      `${BASE_URL}/v2/cob`,
+      `${baseURL}/v2/cob`,
       payload,
       {
         headers: {
@@ -81,7 +90,6 @@ async function criarCobrancaPix(valor, descricao) {
       }
     );
 
-    console.log('✅ PIX GERADO');
     return response.data;
 
   } catch (err) {
@@ -90,6 +98,4 @@ async function criarCobrancaPix(valor, descricao) {
   }
 }
 
-module.exports = {
-  criarCobrancaPix
-};
+module.exports = { criarCobrancaPix };
