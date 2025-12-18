@@ -1,13 +1,13 @@
 const QRCode = require('qrcode');
 
-async function gerarQrCodeBase64(pixCopiaECola) {
-  const qrCodeBase64 = await QRCode.toDataURL(pixCopiaECola, {
-    type: 'image/png',
-    width: 400,
-    margin: 2
-  });
+async function gerarQrCodeBase64(texto) {
+  if (!texto) {
+    throw new Error('Texto para gerar QR Code não informado');
+  }
 
-  return qrCodeBase64;
+  const base64 = await QRCode.toDataURL(texto);
+
+  return base64;
 }
 
 module.exports = {
