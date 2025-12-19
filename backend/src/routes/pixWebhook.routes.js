@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 
 const EFI_IP = '34.193.116.226';
-const WEBHOOK_HMAC = process.env.EFI_WEBHOOK_HMAC || 'meu-hmac-secreto';
+const WEBHOOK_HMAC = process.env.EFI_WEBHOOK_HMAC || 'efi_pix_webhook_92fA8sLk2025';
 
 router.post('/pix', (req, res) => {
   const ip =
