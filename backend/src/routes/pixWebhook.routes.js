@@ -1,25 +1,21 @@
 const express = require('express');
 const router = express.Router();
+const { registrarWebhookPix } = require('../services/efiWebhook.service');
 
-router.post('/pix', (req, res) => {
-  const hmacRecebido = req.query.hmac;
-  const hmacEsperado = process.env.EFI_WEBHOOK_HMAC;
-
-  // 🔐 Validação única e correta
-  if (!hmacRecebido || hmacRecebido !== hmacEsperado) {
-    console.log('❌ Webhook rejeitado: HMAC inválido');
-    return res.status(401).send('IP não autorizado');
+router.post('/register', async (req, res) => {
+  try {
+    const result = await registrarWebhookPix();
+    res.json({
+      message: 'Webhook PIX registrado com sucesso',
+      result
+    });
+  } catch (err) {
+    console.error(err.response?.data || err.message);
+    res.status(500).json({
+      error: 'Erro ao registrar webhook',
+      detalhes: err.response?.data || err.message
+    });
   }
-
-  console.log('🔔 WEBHOOK PIX RECEBIDO COM SUCESSO');
-  console.log(JSON.stringify(req.body, null, 2));
-
-  // Futuro:
-  // - confirmar pagamento
-  // - atualizar pedido
-  // - salvar no banco
-
-  res.status(200).send('ok');
 });
 
 module.exports = router;
