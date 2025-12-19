@@ -7,24 +7,25 @@ const WEBHOOK_HMAC = process.env.EFI_WEBHOOK_HMAC;
 router.post('/pix', (req, res) => {
   console.log('📥 Webhook Pix recebido');
 
-  const ip =
-    req.headers['x-forwarded-for'] ||
-    req.socket.remoteAddress ||
-    '';
+  const forwardedFor = req.headers['x-forwarded-for'] || '';
+  const remoteIp = req.socket.remoteAddress || '';
 
+  const ipList = `${forwardedFor},${remoteIp}`;
   const { hmac } = req.query;
 
-  // 🔐 Validação do HMAC
+  console.log('🌐 IPs recebidos:', ipList);
+  console.log('🔐 HMAC recebido:', hmac);
+  console.log('🔐 HMAC esperado:', WEBHOOK_HMAC);
+
+  // 🔐 Validação HMAC (se configurado)
   if (WEBHOOK_HMAC && hmac !== WEBHOOK_HMAC) {
-    console.log('❌ HMAC inválido');
-    console.log('Recebido:', hmac);
-    console.log('Esperado:', WEBHOOK_HMAC);
+    console.log('❌ Webhook rejeitado: HMAC inválido');
     return res.status(401).send('HMAC inválido');
   }
 
-  // 🔐 Validação do IP da Efí
-  if (!ip.includes(EFI_IP)) {
-    console.log('❌ IP não autorizado:', ip);
+  // 🔐 Validação IP Efí
+  if (!ipList.includes(EFI_IP)) {
+    console.log('❌ Webhook rejeitado: IP não autorizado');
     return res.status(401).send('IP não autorizado');
   }
 
@@ -36,12 +37,7 @@ router.post('/pix', (req, res) => {
   }
 
   pix.forEach((pagamento) => {
-    const {
-      endToEndId,
-      txid,
-      valor,
-      horario
-    } = pagamento;
+    const { endToEndId, txid, valor, horario } = pagamento;
 
     console.log('💰 PAGAMENTO CONFIRMADO');
     console.log('TXID:', txid);
@@ -49,10 +45,9 @@ router.post('/pix', (req, res) => {
     console.log('Valor:', valor);
     console.log('Horário:', horario);
 
-    // 👉 AQUI no futuro:
-    // - marcar pedido como pago
-    // - salvar no banco
-    // - liberar produto
+    // 👉 Futuro:
+    // marcar pedido como pago
+    // salvar no banco
   });
 
   res.status(200).send('ok');
