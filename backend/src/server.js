@@ -1,12 +1,8 @@
 const app = require('./app');
-const ensureCert = require('./utils/ensureCert');
-const pixRoutes = require('./routes/pix.routes');
-
-ensureCert();
-
-app.use('/api', pixRoutes);
+require('./utils/ensureCert'); // mantém isso, já está funcionando
 
 const PORT = process.env.PORT || 3333;
+
 app.listen(PORT, () => {
-  console.log(`🚀 Servidor rodando na porta ${PORT}`);
+  console.log('🚀 Servidor rodando na porta', PORT);
 });
