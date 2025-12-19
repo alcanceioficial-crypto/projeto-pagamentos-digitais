@@ -9,9 +9,13 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Rotas Pix
+// 🔹 Rotas da API
 app.use('/api/pix', pixRoutes);
+app.use('/api/webhook', pixWebhookRoutes);
 
-// Webhook Pix
-app.use('/api/webhook', WebhookRoutes);
+// 🔹 Rota de teste (opcional)
+app.get('/', (req, res) => {
+  res.send('API Pix Efí rodando');
+});
+
 module.exports = app;
