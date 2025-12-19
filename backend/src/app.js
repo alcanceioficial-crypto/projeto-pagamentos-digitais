@@ -13,6 +13,5 @@ app.use(express.json());
 app.use('/api/pix', pixRoutes);
 
 // Webhook Pix
-app.use('/', pixWebhookRoutes);
-
+app.use('/api/webhook', pixWebhookRoutes);
 module.exports = app;
