@@ -1,19 +1,24 @@
-// src/routes/pixWebhook.routes.js
-
 const express = require('express');
 const router = express.Router();
-const pixStore = require('../store/pixStore');
 
-// IPs oficiais da Efí (homolog)
-// em produção podem existir mais, mas esse já funcionou pra você
-const EFI_IP = '34.193.116.226';
+/**
+ * CONFIGURAÇÕES
+ * =====================================================
+ * Em PRODUÇÃO:
+ * - EFI_WEBHOOK_HMAC vem da Efí (definido no painel)
+ * - IP é validado automaticamente
+ *
+ * Em TESTE (Postman):
+ * - Use header: x-forwarded-for = 34.193.116.226
+ */
 
-// HMAC vem SOMENTE da variável de ambiente
-const WEBHOOK_HMAC = process.env.EFI_WEBHOOK_HMAC;
+const EFI_IP = '34.193.116.226'; // IP oficial Efí (homolog)
+const WEBHOOK_HMAC = process.env.EFI_WEBHOOK_HMAC; // NUNCA hardcode em produção
 
 router.post('/pix', (req, res) => {
   console.log('📥 Webhook Pix recebido');
 
+  // IP real (Render + proxies)
   const ip =
     req.headers['x-forwarded-for'] ||
     req.socket.remoteAddress ||
@@ -25,51 +30,39 @@ router.post('/pix', (req, res) => {
   console.log('🔐 HMAC esperado:', WEBHOOK_HMAC);
   console.log('🌐 IP:', ip);
 
-  // 🔐 Validação do HMAC
+  /**
+   * VALIDAÇÃO 1 — HMAC
+   */
   if (!WEBHOOK_HMAC || hmac !== WEBHOOK_HMAC) {
     console.log('❌ Webhook rejeitado: HMAC inválido');
     return res.status(401).send('HMAC inválido');
   }
 
-  // 🔐 Validação do IP da Efí
+  /**
+   * VALIDAÇÃO 2 — IP DA EFÍ
+   * Em testes via Postman, simule com header:
+   * x-forwarded-for: 34.193.116.226
+   */
   if (!ip.includes(EFI_IP)) {
-    console.log('❌ Webhook rejeitado: IP não autorizado');
+    console.log('❌ Webhook rejeitado: IP não autorizado:', ip);
     return res.status(401).send('IP não autorizado');
   }
 
-  // 📦 Payload do Pix
-  const evento = req.body;
+  /**
+   * PAYLOAD DO PIX
+   */
+  console.log('✅ WEBHOOK PIX RECEBIDO COM SUCESSO');
+  console.log(JSON.stringify(req.body, null, 2));
 
-  if (!evento || !evento.pix || !evento.pix.length) {
-    console.log('⚠️ Webhook recebido sem eventos PIX');
-    return res.status(200).send('ok');
-  }
+  /**
+   * AQUI É ONDE VOCÊ VAI:
+   * - localizar o txid
+   * - confirmar pagamento
+   * - atualizar pedido no banco
+   */
 
-  // 🔁 Pode vir mais de um Pix no array
-  evento.pix.forEach(pix => {
-    const txid = pix.txid;
-
-    const pedido = pixStore.get(txid);
-
-    if (!pedido) {
-      console.log('⚠️ Pedido não encontrado para TXID:', txid);
-      return;
-    }
-
-    pedido.status = 'PAGO';
-    pedido.pagoEm = new Date();
-    pedido.endToEndId = pix.endToEndId;
-    pedido.valorPago = pix.valor;
-
-    pixStore.set(txid, pedido);
-
-    console.log('✅ PIX CONFIRMADO');
-    console.log('TXID:', txid);
-    console.log('VALOR:', pix.valor);
-  });
-
-  // ⚠️ A Efí exige HTTP 200
-  res.status(200).send('ok');
+  // A Efí EXIGE resposta 200
+  return res.status(200).send('ok');
 });
 
 module.exports = router;
