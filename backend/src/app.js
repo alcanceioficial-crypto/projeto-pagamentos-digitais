@@ -9,7 +9,10 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// Rotas Pix
 app.use('/api/pix', pixRoutes);
-app.use('/api/webhook', pixWebhookRoutes);
+
+// Webhook Pix
+app.use('/', pixWebhookRoutes);
 
 module.exports = app;
