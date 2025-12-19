@@ -1,23 +1,12 @@
 const express = require('express');
 const router = express.Router();
 
-/**
- * IP oficial da Efí (homologação)
- * Em produção podemos ampliar para lista de IPs
- */
 const EFI_IP = '34.193.116.226';
-
-/**
- * HMAC configurado no painel da Efí
- * O valor REAL deve estar na variável de ambiente
- */
 const WEBHOOK_HMAC = process.env.EFI_WEBHOOK_HMAC;
 
-/**
- * Webhook Pix Efí
- * Endpoint: POST /api/webhook/pix?hmac=SEU_HMAC
- */
 router.post('/pix', (req, res) => {
+  console.log('📥 Webhook Pix recebido');
+
   const ip =
     req.headers['x-forwarded-for'] ||
     req.socket.remoteAddress ||
@@ -25,36 +14,47 @@ router.post('/pix', (req, res) => {
 
   const { hmac } = req.query;
 
-  console.log('📥 Webhook chamado');
-  console.log('🔐 HMAC recebido:', hmac);
-  console.log('🔐 HMAC esperado:', WEBHOOK_HMAC);
-  console.log('🌐 IP:', ip);
-
-  // 🔐 Validação 1 — HMAC
-  if (!WEBHOOK_HMAC || hmac !== WEBHOOK_HMAC) {
-    console.log('❌ Webhook rejeitado: HMAC inválido');
+  // 🔐 Validação do HMAC
+  if (WEBHOOK_HMAC && hmac !== WEBHOOK_HMAC) {
+    console.log('❌ HMAC inválido');
+    console.log('Recebido:', hmac);
+    console.log('Esperado:', WEBHOOK_HMAC);
     return res.status(401).send('HMAC inválido');
   }
 
-  // 🔐 Validação 2 — IP da Efí
-  // ⚠️ Para testes via Postman, este bloco pode ser comentado
+  // 🔐 Validação do IP da Efí
   if (!ip.includes(EFI_IP)) {
-    console.log('❌ Webhook rejeitado: IP não autorizado:', ip);
+    console.log('❌ IP não autorizado:', ip);
     return res.status(401).send('IP não autorizado');
   }
 
-  console.log('✅ WEBHOOK PIX RECEBIDO COM SUCESSO');
-  console.log('📦 Payload recebido:');
-  console.log(JSON.stringify(req.body, null, 2));
+  const { pix } = req.body;
 
-  /**
-   * Futuro:
-   * - Confirmar pagamento
-   * - Atualizar pedido
-   * - Salvar no banco
-   */
+  if (!pix || !Array.isArray(pix)) {
+    console.log('⚠️ Webhook sem array pix');
+    return res.status(200).send('ok');
+  }
 
-  // A Efí exige resposta HTTP 200
+  pix.forEach((pagamento) => {
+    const {
+      endToEndId,
+      txid,
+      valor,
+      horario
+    } = pagamento;
+
+    console.log('💰 PAGAMENTO CONFIRMADO');
+    console.log('TXID:', txid);
+    console.log('EndToEndId:', endToEndId);
+    console.log('Valor:', valor);
+    console.log('Horário:', horario);
+
+    // 👉 AQUI no futuro:
+    // - marcar pedido como pago
+    // - salvar no banco
+    // - liberar produto
+  });
+
   res.status(200).send('ok');
 });
 
