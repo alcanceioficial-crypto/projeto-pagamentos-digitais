@@ -1,65 +1,29 @@
 const express = require('express');
-const axios = require('axios');
-const https = require('https');
-const fs = require('fs');
-
 const router = express.Router();
+const { criarCobrancaPix } = require('../services/efiPix.service');
+const { gerarQrCodeBase64 } = require('../services/qrcode.service');
 
-const baseURL =
-  process.env.EFI_ENV === 'homolog'
-    ? 'https://pix-h.api.efipay.com.br'
-    : 'https://pix.api.efipay.com.br';
-
-function httpsAgent() {
-  return new https.Agent({
-    pfx: fs.readFileSync(process.env.EFI_CERT_PATH),
-    passphrase: '',
-  });
-}
-
-async function getToken() {
-  const response = await axios.post(
-    `${baseURL}/oauth/token`,
-    { grant_type: 'client_credentials' },
-    {
-      httpsAgent: httpsAgent(),
-      auth: {
-        username: process.env.EFI_CLIENT_ID,
-        password: process.env.EFI_CLIENT_SECRET,
-      },
-    }
-  );
-
-  return response.data.access_token;
-}
-
-router.post('/pix/cob', async (req, res) => {
+router.post('/create', async (req, res) => {
   try {
-    const token = await getToken();
+    const { amount, description } = req.body;
 
-    const body = {
-      calendario: { expiracao: 3600 },
-      valor: { original: '19.90' },
-      chave: process.env.EFI_PIX_KEY,
-      solicitacaoPagador: 'Teste PIX com QRCode',
-    };
-
-    const response = await axios.post(
-      `${baseURL}/v2/cob`,
-      body,
-      {
-        httpsAgent: httpsAgent(),
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      }
+    const pix = await criarCobrancaPix(
+      Number(amount),
+      description || 'Pagamento Pix'
     );
 
-    res.json(response.data);
+    const qrCodeBase64 = await gerarQrCodeBase64(pix.pixCopiaECola);
+
+    res.json({
+      ...pix,
+      qrCodeBase64
+    });
+
   } catch (err) {
-    console.error(err.response?.data || err.message);
-    res.status(500).json({ error: 'Erro ao criar cobrança Pix' });
+    res.status(500).json({
+      error: 'Erro ao gerar cobrança PIX',
+      detalhes: err.response?.data || err.message
+    });
   }
 });
 
