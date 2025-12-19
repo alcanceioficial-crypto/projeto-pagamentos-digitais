@@ -1,6 +1,8 @@
 const express = require('express');
 const router = express.Router();
 
+const { confirmarPagamento } = require('../repositories/pedidos.repository');
+
 const WEBHOOK_HMAC = process.env.EFI_WEBHOOK_HMAC;
 
 router.post('/pix', (req, res) => {
@@ -8,35 +10,29 @@ router.post('/pix', (req, res) => {
 
   const { hmac } = req.query;
 
-  console.log('🔐 HMAC recebido:', hmac);
-  console.log('🔐 HMAC esperado:', WEBHOOK_HMAC);
-
-  // 🔐 Validação HMAC (obrigatória)
   if (!WEBHOOK_HMAC || hmac !== WEBHOOK_HMAC) {
-    console.log('❌ Webhook rejeitado: HMAC inválido');
+    console.log('❌ HMAC inválido');
     return res.status(401).send('HMAC inválido');
   }
 
   const { pix } = req.body;
 
   if (!pix || !Array.isArray(pix)) {
-    console.log('⚠️ Webhook sem array pix');
     return res.status(200).send('ok');
   }
 
   pix.forEach((pagamento) => {
-    const { endToEndId, txid, valor, horario } = pagamento;
+    const { txid, valor } = pagamento;
 
-    console.log('💰 PAGAMENTO CONFIRMADO');
-    console.log('TXID:', txid);
-    console.log('EndToEndId:', endToEndId);
-    console.log('Valor:', valor);
-    console.log('Horário:', horario);
+    const pedido = confirmarPagamento(txid);
 
-    // 🔜 Próximo passo:
-    // - marcar pedido como pago
-    // - salvar no banco
-    // - disparar evento
+    if (pedido) {
+      console.log('✅ PAGAMENTO CONFIRMADO');
+      console.log('TXID:', txid);
+      console.log('Valor:', valor);
+    } else {
+      console.log('⚠️ Pedido não encontrado para TXID:', txid);
+    }
   });
 
   res.status(200).send('ok');
