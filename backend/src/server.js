@@ -1,10 +1,9 @@
-require('dotenv').config();
-
 const app = require('./app');
 const ensureCert = require('./utils/ensureCert');
 const pixRoutes = require('./routes/pix.routes');
 
-ensureCert(); // 🔐 SEM ISSO NADA FUNCIONA
+// 🔐 recria o certificado a partir do Base64
+ensureCert();
 
 app.use('/api', pixRoutes);
 
