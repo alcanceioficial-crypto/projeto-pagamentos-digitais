@@ -2,52 +2,39 @@ const express = require('express');
 const router = express.Router();
 const pixStore = require('../store/pixStore');
 
-const EFI_IP = '34.193.116.226';
 const WEBHOOK_HMAC = process.env.EFI_WEBHOOK_HMAC;
 
 router.post('/pix', (req, res) => {
   console.log('📥 Webhook Pix recebido');
 
-  const ip =
-    req.headers['x-forwarded-for'] ||
-    req.socket.remoteAddress ||
-    '';
-
   const { hmac } = req.query;
-
-  // 🔐 HMAC
-  if (!WEBHOOK_HMAC || hmac !== WEBHOOK_HMAC) {
+  if (hmac !== WEBHOOK_HMAC) {
+    console.log('❌ HMAC inválido');
     return res.status(401).send('HMAC inválido');
   }
 
-  // 🔐 IP
-  if (!ip.includes(EFI_IP)) {
-    return res.status(401).send('IP não autorizado');
-  }
-
-  const pixArray = req.body?.pix || [];
+  const pixArray = req.body.pix || [];
 
   pixArray.forEach(pix => {
-    const txid = pix.txid;
+    const registro = pixStore.get(pix.txid);
 
-    if (!pixStore.has(txid)) {
-      console.log('⚠️ Pedido não encontrado para TXID:', txid);
+    if (!registro) {
+      console.log('⚠️ Pedido não encontrado para TXID:', pix.txid);
       return;
     }
 
-    // ✅ CONFIRMA PAGAMENTO
-    pixStore.set(txid, {
-      ...pixStore.get(txid),
-      status: 'PAGO',
-      pagoEm: new Date(),
-      endToEndId: pix.endToEndId,
-      valorRecebido: pix.valor
-    });
+    // ✅ Confirma pagamento
+    registro.status = 'PAGO';
+    registro.pagoEm = pix.horario;
 
-    console.log('💰 Pagamento confirmado:', txid);
+    pixStore.set(pix.txid, registro);
+
+    console.log('✅ PAGAMENTO CONFIRMADO');
+    console.log('TXID:', pix.txid);
+    console.log('VALOR:', pix.valor);
   });
 
-  return res.status(200).send('ok');
+  res.status(200).send('ok');
 });
 
 module.exports = router;
