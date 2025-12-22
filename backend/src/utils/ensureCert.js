@@ -1,24 +1,24 @@
 const fs = require('fs');
 const path = require('path');
 
-module.exports = function ensureCert() {
-  if (!process.env.EFI_CERT_BASE64) {
-    throw new Error('EFI_CERT_BASE64 não definido');
+const certPath = '/tmp/efi-cert.p12';
+
+function ensureCert() {
+  if (fs.existsSync(certPath)) {
+    return;
   }
 
-  const certPath = '/tmp/efi-cert.p12';
+  const base64 = process.env.EFI_CERT_BASE64;
 
-  // Se já existir, não recria
-  if (!fs.existsSync(certPath)) {
-    const certBuffer = Buffer.from(
-      process.env.EFI_CERT_BASE64,
-      'base64'
-    );
-
-    fs.writeFileSync(certPath, certBuffer);
-    console.log('📄 Certificado Efí recriado em /tmp');
+  if (!base64) {
+    throw new Error('EFI_CERT_BASE64 não definida');
   }
 
-  // Força o app inteiro a usar esse caminho
-  process.env.EFI_CERT_PATH = certPath;
-};
+  const buffer = Buffer.from(base64, 'base64');
+
+  fs.writeFileSync(certPath, buffer);
+
+  console.log('📄 Certificado Efí recriado em /tmp');
+}
+
+module.exports = ensureCert;
