@@ -14,14 +14,12 @@ router.post('/create', async (req, res) => {
       description || 'Pagamento Pix'
     );
 
-    // 🧠 SALVA O TXID
+    // 🔐 Salva a cobrança em memória
     pixStore.set(pix.txid, {
       status: 'PENDENTE',
       valor: amount,
       criadoEm: new Date()
     });
-
-    console.log('🧾 Cobrança criada:', pix.txid);
 
     const qrCodeBase64 = await gerarQrCodeBase64(pix.pixCopiaECola);
 
@@ -31,9 +29,9 @@ router.post('/create', async (req, res) => {
     });
 
   } catch (err) {
-    console.error(err.response?.data || err.message);
     res.status(500).json({
-      error: 'Erro ao gerar cobrança PIX'
+      error: 'Erro ao gerar cobrança PIX',
+      detalhes: err.response?.data || err.message
     });
   }
 });
