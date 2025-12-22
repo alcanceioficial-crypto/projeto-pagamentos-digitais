@@ -1,5 +1,3 @@
-require('dotenv').config();
-
 const ensureCert = require('./utils/ensureCert');
 ensureCert(); // 🔐 recria o certificado em /tmp
 
