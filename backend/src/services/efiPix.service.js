@@ -1,5 +1,3 @@
-// src/services/efiPix.service.js
-
 const axios = require('axios');
 const https = require('https');
 const fs = require('fs');
@@ -75,13 +73,13 @@ async function criarCobrancaPix(valor, descricao) {
 
   console.log('🧾 PIX criado e armazenado:', pix.txid);
 
- return {
-  txid,
-  status: 'PENDENTE',
-  valor: amount.toFixed(2),
-  pixCopiaECola: response.data.pixCopiaECola
-};
-
+  // ✅ RETORNO CORRETO
+  return {
+    txid: pix.txid,
+    status: 'PENDENTE',
+    valor: valor.toFixed(2),
+    pixCopiaECola: pix.pixCopiaECola,
+  };
 }
 
 module.exports = {
