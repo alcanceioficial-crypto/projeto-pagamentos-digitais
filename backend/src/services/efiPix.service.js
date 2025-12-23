@@ -1,9 +1,7 @@
 const axios = require('axios');
 const https = require('https');
 const fs = require('fs');
-const pixStore = require('../store/pixStore');
-
-console.log('📁 Inicializando efiPix.service.js');
+const pool = require('../database');
 
 const EFI_ENV = process.env.EFI_ENV || 'homolog';
 
@@ -11,9 +9,6 @@ const baseURL =
   EFI_ENV === 'homolog'
     ? 'https://pix-h.api.efipay.com.br'
     : 'https://pix.api.efipay.com.br';
-
-console.log('🌍 Ambiente:', EFI_ENV);
-console.log('🌐 Base URL:', baseURL);
 
 function httpsAgent() {
   return new https.Agent({
@@ -57,31 +52,25 @@ async function criarCobrancaPix(valor, descricao) {
       httpsAgent: httpsAgent(),
       headers: {
         Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
       },
     }
   );
 
   const pix = response.data;
 
-  // 🧠 SALVA O TXID EM MEMÓRIA
-  pixStore.set(pix.txid, {
-    status: 'PENDENTE',
-    valor,
-    criadoEm: new Date(),
-  });
+  // ✅ SALVA NO BANCO
+  await pool.query(
+    `INSERT INTO pix_pagamentos (txid, valor, status)
+     VALUES ($1, $2, 'PENDENTE')`,
+    [pix.txid, valor]
+  );
 
-  console.log('🧾 PIX criado e armazenado:', pix.txid);
-
-  // ✅ RETORNO CORRETO
   return {
     txid: pix.txid,
     status: 'PENDENTE',
-    valor: valor.toFixed(2),
-    pixCopiaECola: pix.pixCopiaECola,
+    valor,
+    pixCopiaECola: pix.pixCopiaECola
   };
 }
 
-module.exports = {
-  criarCobrancaPix,
-};
+module.exports = { criarCobrancaPix };
