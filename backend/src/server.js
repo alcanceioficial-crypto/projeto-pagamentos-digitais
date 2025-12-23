@@ -9,7 +9,8 @@ const pixWebhookRoutes = require('./routes/pixWebhook.routes');
 
 const PORT = process.env.PORT || 3333;
 
-initDb();
+(async () => {
+  await initDb();
 
 // Rotas
 app.use('/api/pix', pixRoutes);
