@@ -1,27 +1,20 @@
 const express = require('express');
 const router = express.Router();
-const pixStore = require('../store/pixStore');
+const pool = require('../database');
 
-// 🔍 CONSULTAR STATUS DO PIX
-router.get('/status/:txid', (req, res) => {
+router.get('/status/:txid', async (req, res) => {
   const { txid } = req.params;
 
-  const registro = pixStore.get(txid);
+  const result = await pool.query(
+    `SELECT * FROM pix_pagamentos WHERE txid = $1`,
+    [txid]
+  );
 
-  if (!registro) {
-    return res.status(404).json({
-      error: 'PIX não encontrado',
-      txid
-    });
+  if (result.rowCount === 0) {
+    return res.status(404).json({ error: 'PIX não encontrado' });
   }
 
-  return res.json({
-    txid,
-    status: registro.status,
-    valor: registro.valor,
-    criadoEm: registro.criadoEm,
-    pagoEm: registro.pagoEm || null
-  });
+  res.json(result.rows[0]);
 });
 
 module.exports = router;
