@@ -75,11 +75,13 @@ async function criarCobrancaPix(valor, descricao) {
 
   console.log('🧾 PIX criado e armazenado:', pix.txid);
 
-  return {
-    txid: pix.txid,
-    valor,
-    pixCopiaECola: pix.pixCopiaECola,
-  };
+ return {
+  txid,
+  status: 'PENDENTE',
+  valor: amount.toFixed(2),
+  pixCopiaECola: response.data.pixCopiaECola
+};
+
 }
 
 module.exports = {
