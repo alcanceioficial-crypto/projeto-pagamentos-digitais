@@ -1,8 +1,8 @@
 // src/services/efiPix.service.js
 
-import axios from "axios";
-import https from "https";
-import fs from "fs";
+const axios = require("axios");
+const https = require("https");
+const fs = require("fs");
 
 console.log("🔥 EFI PIX SERVICE CARREGADO");
 console.log("📁 Inicializando efiPix.service.js");
@@ -52,6 +52,8 @@ async function registrarWebhook() {
 }
 
 // 🔥 Inicialização automática
-export function initEfiPix() {
+function initEfiPix() {
   registrarWebhook();
 }
+
+module.exports = { initEfiPix };
