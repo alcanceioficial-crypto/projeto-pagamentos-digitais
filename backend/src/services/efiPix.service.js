@@ -65,9 +65,6 @@ async function registrarWebhook() {
   }
 }
 
-// 🔥 Inicialização
-function initEfiPix() {
-  registrarWebhook();
-}
+
 
 module.exports = { initEfiPix };
