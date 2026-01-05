@@ -1,12 +1,9 @@
-const fs = require('fs');
-const path = require('path');
+// src/server.js
 
+const fs = require('fs');
 const app = require('./app');
 
-// 👇 FORÇA carregar o service no boot
-require('./services/efiPix.service');
-
-// 🔐 Certificado
+// 🔐 Garante que o certificado Efí exista em /tmp
 const certPath = '/tmp/efi-cert.p12';
 
 if (!fs.existsSync(certPath)) {
@@ -22,6 +19,15 @@ if (!fs.existsSync(certPath)) {
   console.log('📄 Certificado Efí recriado em /tmp');
 }
 
+/**
+ * 🚨 ESTE REQUIRE É O PONTO CRÍTICO 🚨
+ * Ele TEM que existir
+ * Ele TEM que estar aqui
+ * O caminho TEM que ser exatamente esse
+ */
+require('./services/efiPix.service');
+
+// 🚀 Sobe o servidor
 const PORT = process.env.PORT || 3333;
 
 app.listen(PORT, () => {
