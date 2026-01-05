@@ -85,7 +85,7 @@ async function criarCobrancaPix(valor, descricao) {
   };
 }
 
-module.exports = { criarCobrancaPix };
+
 // 🔔 REGISTRAR WEBHOOK PIX
 async function registrarWebhookPix() {
   const token = await getToken();
@@ -108,3 +108,7 @@ async function registrarWebhookPix() {
   console.log('🔔 Webhook registrado com sucesso');
   return response.data;
 }
+module.exports = {
+  criarCobrancaPix,
+  registrarWebhookPix,
+};
