@@ -1,14 +1,14 @@
 // src/app.js
 
-import express from "express";
-import pixRoutes from "./routes/pix.routes.js";
-import { initEfiPix } from "./services/efiPix.service.js";
+const express = require("express");
+const pixRoutes = require("./routes/pix.routes");
+const { initEfiPix } = require("./services/efiPix.service");
 
 const app = express();
 
 app.use(express.json());
 
-// 🔥 Inicializa Efí Pix (token + webhook)
+// 🔥 Inicializa Efí Pix (registra webhook)
 initEfiPix();
 
 // 📡 Rotas
@@ -19,4 +19,4 @@ app.get("/", (req, res) => {
   res.json({ status: "API Pix Efí rodando" });
 });
 
-export default app;
+module.exports = app;
