@@ -1,39 +1,31 @@
 const express = require('express');
 const router = express.Router();
-const { registrarWebhookPix } = require('../services/efiPix.service');
-const { criarCobrancaPix } = require('../services/efiPix.service');
-const { gerarQrCodeBase64 } = require('../services/qrcode.service');
-const pixStore = require('../store/pixStore');
 
+const { criarCobrancaPix, registrarWebhookPix } = require('../services/efiPix.service');
+
+// 💰 CRIAR COBRANÇA PIX
 router.post('/create', async (req, res) => {
   try {
-    const { amount, description } = req.body;
+    const { valor, descricao } = req.body;
 
-    const pix = await criarCobrancaPix(
-      Number(amount),
-      description || 'Pagamento Pix'
-    );
+    if (!valor || !descricao) {
+      return res.status(400).json({
+        error: 'Valor e descrição são obrigatórios'
+      });
+    }
 
-    // 🔐 Salva a cobrança em memória
-    pixStore.set(pix.txid, {
-      status: 'PENDENTE',
-      valor: amount,
-      criadoEm: new Date()
-    });
+    const pix = await criarCobrancaPix(Number(valor), descricao);
 
-    const qrCodeBase64 = await gerarQrCodeBase64(pix.pixCopiaECola);
-
-    res.json({
-      ...pix,
-      qrCodeBase64
-    });
-
+    res.json(pix);
   } catch (err) {
+    console.error('❌ Erro ao criar PIX:', err.response?.data || err.message);
     res.status(500).json({
-      error: 'Erro ao gerar cobrança PIX',
-      detalhes: err.response?.data || err.message
+      error: 'Erro ao gerar cobrança PIX'
     });
-    // 🔧 REGISTRAR WEBHOOK NA EFI (RODAR UMA VEZ)
+  }
+});
+
+// 🔔 REGISTRAR WEBHOOK NA EFI (RODAR UMA VEZ)
 router.post('/webhook/register', async (req, res) => {
   try {
     const result = await registrarWebhookPix();
