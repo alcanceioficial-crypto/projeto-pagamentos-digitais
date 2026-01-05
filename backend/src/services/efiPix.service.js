@@ -17,11 +17,19 @@ const baseURL =
 console.log("🌍 Ambiente:", EFI_ENV);
 console.log("🌐 Base URL:", baseURL);
 
-// 🔐 HTTPS Agent com certificado
-const httpsAgent = new https.Agent({
-  pfx: fs.readFileSync("/tmp/efi-cert.p12"),
-  passphrase: process.env.EFI_CERT_PASSWORD,
-});
+// 🔐 Cria HTTPS Agent SOMENTE quando necessário
+function getHttpsAgent() {
+  const certPath = "/tmp/efi-cert.p12";
+
+  if (!fs.existsSync(certPath)) {
+    throw new Error("❌ Certificado Efí não encontrado em /tmp");
+  }
+
+  return new https.Agent({
+    pfx: fs.readFileSync(certPath),
+    passphrase: process.env.EFI_CERT_PASSWORD,
+  });
+}
 
 // 🔑 Registrar webhook Pix
 async function registrarWebhook() {
@@ -29,6 +37,12 @@ async function registrarWebhook() {
     const chavePix = process.env.EFI_PIX_KEY;
     const webhookUrl = process.env.EFI_WEBHOOK_URL;
     const accessToken = process.env.EFI_ACCESS_TOKEN;
+
+    if (!chavePix || !webhookUrl || !accessToken) {
+      throw new Error("Variáveis de ambiente do Pix incompletas");
+    }
+
+    const httpsAgent = getHttpsAgent();
 
     const response = await axios.put(
       `${baseURL}/v2/webhook/${chavePix}`,
@@ -46,12 +60,12 @@ async function registrarWebhook() {
   } catch (error) {
     console.error("❌ Erro ao registrar webhook:", {
       status: error.response?.status,
-      data: error.response?.data,
+      data: error.response?.data || error.message,
     });
   }
 }
 
-// 🔥 Inicialização automática
+// 🔥 Inicialização
 function initEfiPix() {
   registrarWebhook();
 }
