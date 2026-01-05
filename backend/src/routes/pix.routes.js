@@ -1,7 +1,6 @@
 // src/routes/pix.routes.js
 
-import express from "express";
-
+const express = require("express");
 const router = express.Router();
 
 router.post("/pix", (req, res) => {
@@ -20,4 +19,4 @@ router.post("/pix", (req, res) => {
   res.status(200).json({ recebido: true });
 });
 
-export default router;
+module.exports = router;
