@@ -1,12 +1,12 @@
 // src/server.js
 
-import fs from "fs";
-import app from "./app.js";
+const fs = require("fs");
+const app = require("./app");
 
-// 🔐 Caminho fixo exigido pelo Render
+// 🔐 Caminho do certificado no Render
 const certPath = "/tmp/efi-cert.p12";
 
-// 🔁 Recria certificado a partir da variável de ambiente
+// 🔁 Recria certificado se não existir
 if (!fs.existsSync(certPath)) {
   if (!process.env.EFI_CERT_BASE64) {
     console.error("❌ EFI_CERT_BASE64 não definido");
