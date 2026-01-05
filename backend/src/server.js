@@ -1,27 +1,21 @@
-// backend/src/server.js
+// src/server.js
 
-const fs = require('fs');
-const path = require('path');
+import fs from "fs";
+import app from "./app.js";
 
-// 🔥 IMPORTANTE — força o carregamento do serviço Pix
-require('./services/efiPix.service');
+// 🔐 Caminho fixo exigido pelo Render
+const certPath = "/tmp/efi-cert.p12";
 
-const app = require('./app');
-
-// 🔐 Garante que o certificado Efí exista em /tmp
-const certPath = '/tmp/efi-cert.p12';
-
+// 🔁 Recria certificado a partir da variável de ambiente
 if (!fs.existsSync(certPath)) {
-  const base64Cert = process.env.EFI_CERT_BASE64;
-
-  if (!base64Cert) {
-    console.error('❌ EFI_CERT_BASE64 não definido');
+  if (!process.env.EFI_CERT_BASE64) {
+    console.error("❌ EFI_CERT_BASE64 não definido");
     process.exit(1);
   }
 
-  const certBuffer = Buffer.from(base64Cert, 'base64');
+  const certBuffer = Buffer.from(process.env.EFI_CERT_BASE64, "base64");
   fs.writeFileSync(certPath, certBuffer);
-  console.log('📄 Certificado Efí recriado em /tmp');
+  console.log("📄 Certificado Efí recriado em /tmp");
 }
 
 // 🚀 Sobe o servidor
