@@ -1,5 +1,14 @@
 
 console.log('🔥 EFI PIX SERVICE CARREGADO');
+console.log('📁 Inicializando efiPix.service.js');
+console.log('🌍 Ambiente:', process.env.EFI_ENV);
+console.log(
+  '🌐 Base URL:',
+  process.env.EFI_ENV === 'homolog'
+    ? 'https://pix-h.api.efipay.com.br'
+    : 'https://pix.api.efipay.com.br'
+);
+
 
 const axios = require('axios');
 const https = require('https');
