@@ -1,114 +1,57 @@
+// src/services/efiPix.service.js
 
-console.log('🔥 EFI PIX SERVICE CARREGADO');
-console.log('📁 Inicializando efiPix.service.js');
-console.log('🌍 Ambiente:', process.env.EFI_ENV);
-console.log(
-  '🌐 Base URL:',
-  process.env.EFI_ENV === 'homolog'
-    ? 'https://pix-h.api.efipay.com.br'
-    : 'https://pix.api.efipay.com.br'
-);
+import axios from "axios";
+import https from "https";
+import fs from "fs";
 
+console.log("🔥 EFI PIX SERVICE CARREGADO");
+console.log("📁 Inicializando efiPix.service.js");
 
-const axios = require('axios');
-const https = require('https');
-const fs = require('fs');
-const pool = require('../database');
-
-const EFI_ENV = process.env.EFI_ENV || 'homolog';
+const EFI_ENV = process.env.EFI_ENV || "production";
 
 const baseURL =
-  EFI_ENV === 'homolog'
-    ? 'https://pix-h.api.efipay.com.br'
-    : 'https://pix.api.efipay.com.br';
+  EFI_ENV === "sandbox"
+    ? "https://pix-h.api.efipay.com.br"
+    : "https://pix.api.efipay.com.br";
 
-function httpsAgent() {
-  return new https.Agent({
-    pfx: fs.readFileSync('/tmp/efi-cert.p12'),
-    passphrase: '',
-  });
+console.log("🌍 Ambiente:", EFI_ENV);
+console.log("🌐 Base URL:", baseURL);
+
+// 🔐 HTTPS Agent com certificado
+const httpsAgent = new https.Agent({
+  pfx: fs.readFileSync("/tmp/efi-cert.p12"),
+  passphrase: process.env.EFI_CERT_PASSWORD,
+});
+
+// 🔑 Registrar webhook Pix
+async function registrarWebhook() {
+  try {
+    const chavePix = process.env.EFI_PIX_KEY;
+    const webhookUrl = process.env.EFI_WEBHOOK_URL;
+    const accessToken = process.env.EFI_ACCESS_TOKEN;
+
+    const response = await axios.put(
+      `${baseURL}/v2/webhook/${chavePix}`,
+      { webhookUrl },
+      {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+        },
+        httpsAgent,
+      }
+    );
+
+    console.log("✅ Webhook registrado com sucesso:", response.data);
+  } catch (error) {
+    console.error("❌ Erro ao registrar webhook:", {
+      status: error.response?.status,
+      data: error.response?.data,
+    });
+  }
 }
 
-// 🔑 TOKEN
-async function getToken() {
-  const response = await axios.post(
-    `${baseURL}/oauth/token`,
-    { grant_type: 'client_credentials' },
-    {
-      httpsAgent: httpsAgent(),
-      auth: {
-        username: process.env.EFI_CLIENT_ID,
-        password: process.env.EFI_CLIENT_SECRET,
-      },
-    }
-  );
-
-  return response.data.access_token;
+// 🔥 Inicialização automática
+export function initEfiPix() {
+  registrarWebhook();
 }
-
-// 💰 CRIAR COBRANÇA PIX
-async function criarCobrancaPix(valor, descricao) {
-  const token = await getToken();
-
-  const body = {
-    calendario: { expiracao: 3600 },
-    valor: { original: valor.toFixed(2) },
-    chave: process.env.EFI_PIX_KEY,
-    solicitacaoPagador: descricao,
-  };
-
-  const response = await axios.post(
-    `${baseURL}/v2/cob`,
-    body,
-    {
-      httpsAgent: httpsAgent(),
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    }
-  );
-
-  const pix = response.data;
-
-  // ✅ SALVA NO BANCO
-  await pool.query(
-    `INSERT INTO pix_pagamentos (txid, valor, status)
-     VALUES ($1, $2, 'PENDENTE')`,
-    [pix.txid, valor]
-  );
-
-  return {
-    txid: pix.txid,
-    status: 'PENDENTE',
-    valor,
-    pixCopiaECola: pix.pixCopiaECola
-  };
-}
-
-
-// 🔔 REGISTRAR WEBHOOK PIX
-async function registrarWebhookPix() {
-  const token = await getToken();
-
-  const chavePix = process.env.EFI_PIX_KEY;
-  const webhookUrl = `${process.env.BASE_URL}/api/webhook/pix`;
-
-  const response = await axios.put(
-    `${baseURL}/v2/webhook/${chavePix}`,
-    { webhookUrl },
-    {
-      httpsAgent: httpsAgent(),
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-    }
-  );
-
-  console.log('🔔 Webhook registrado com sucesso');
-  return response.data;
-}
-module.exports = {
-  criarCobrancaPix,
-  registrarWebhookPix,
-};
