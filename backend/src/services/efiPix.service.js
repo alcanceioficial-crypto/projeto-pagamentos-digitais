@@ -86,3 +86,25 @@ async function criarCobrancaPix(valor, descricao) {
 }
 
 module.exports = { criarCobrancaPix };
+// 🔔 REGISTRAR WEBHOOK PIX
+async function registrarWebhookPix() {
+  const token = await getToken();
+
+  const chavePix = process.env.EFI_PIX_KEY;
+  const webhookUrl = `${process.env.BASE_URL}/api/webhook/pix`;
+
+  const response = await axios.put(
+    `${baseURL}/v2/webhook/${chavePix}`,
+    { webhookUrl },
+    {
+      httpsAgent: httpsAgent(),
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+    }
+  );
+
+  console.log('🔔 Webhook registrado com sucesso');
+  return response.data;
+}
