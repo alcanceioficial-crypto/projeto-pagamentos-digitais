@@ -1,6 +1,11 @@
-// src/server.js
+// backend/src/server.js
 
 const fs = require('fs');
+const path = require('path');
+
+// 🔥 IMPORTANTE — força o carregamento do serviço Pix
+require('./services/efiPix.service');
+
 const app = require('./app');
 
 // 🔐 Garante que o certificado Efí exista em /tmp
@@ -18,14 +23,6 @@ if (!fs.existsSync(certPath)) {
   fs.writeFileSync(certPath, certBuffer);
   console.log('📄 Certificado Efí recriado em /tmp');
 }
-
-/**
- * 🚨 ESTE REQUIRE É O PONTO CRÍTICO 🚨
- * Ele TEM que existir
- * Ele TEM que estar aqui
- * O caminho TEM que ser exatamente esse
- */
-require('./services/efiPix.service');
 
 // 🚀 Sobe o servidor
 const PORT = process.env.PORT || 3333;
