@@ -15,7 +15,7 @@ const baseURL =
 console.log("🌍 Ambiente:", EFI_ENV);
 console.log("🌐 Base URL:", baseURL);
 
-// 🔐 HTTPS Agent com certificado
+// 🔐 HTTPS Agent (APENAS PARA TOKEN E CONSULTA PIX)
 function httpsAgent() {
   const certPath = "/tmp/efi-cert.p12";
 
@@ -29,7 +29,7 @@ function httpsAgent() {
   });
 }
 
-// 🔑 TOKEN
+// 🔑 GERAR TOKEN
 async function getToken() {
   const response = await axios.post(
     `${baseURL}/oauth/token`,
@@ -46,37 +46,23 @@ async function getToken() {
   return response.data.access_token;
 }
 
-// 🌐 REGISTRAR WEBHOOK
-async function registrarWebhook() {
+// 🔍 CONSULTAR PIX POR TXID
+async function consultarPixPorTxid(txid) {
   const token = await getToken();
 
-  const url = `${baseURL}/v2/webhook/${process.env.EFI_PIX_KEY}`;
-
-  await axios.put(
-    url,
-    { webhookUrl: process.env.EFI_WEBHOOK_URL },
+  const response = await axios.get(
+    `${baseURL}/v2/pix/${txid}`,
     {
       httpsAgent: httpsAgent(),
       headers: {
         Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
       },
     }
   );
 
-  console.log("✅ Webhook registrado com sucesso");
+  return response.data;
 }
 
-// 🚀 INICIALIZAÇÃO CONTROLADA
-async function initEfiPix() {
-  try {
-    await registrarWebhook();
-  } catch (err) {
-    console.error("❌ Erro ao registrar webhook:", {
-      status: err.response?.status,
-      data: err.response?.data || err.message,
-    });
-  }
-}
-
-module.exports = { initEfiPix };
+module.exports = {
+  consultarPixPorTxid,
+};
