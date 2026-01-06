@@ -34,7 +34,7 @@ async function getToken() {
 
 // 🆔 TXID
 function gerarTxid() {
-  return Date.now().toString(); 
+  return crypto.randomBytes(16).toString("hex").slice(0, 32);
 }
 
 
