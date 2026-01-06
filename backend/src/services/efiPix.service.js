@@ -1,10 +1,9 @@
 const axios = require("axios");
 const https = require("https");
 const fs = require("fs");
-const pixStore = require("../store/pixStore");
+const crypto = require("crypto");
 
 console.log("🔥 EFI PIX SERVICE CARREGADO");
-console.log("📁 Inicializando efiPix.service.js");
 
 const EFI_ENV = process.env.EFI_ENV || "production";
 
@@ -13,19 +12,10 @@ const baseURL =
     ? "https://pix-h.api.efipay.com.br"
     : "https://pix.api.efipay.com.br";
 
-console.log("🌍 Ambiente:", EFI_ENV);
-console.log("🌐 Base URL:", baseURL);
-
 // 🔐 HTTPS Agent
 function httpsAgent() {
-  const certPath = "/tmp/efi-cert.p12";
-
-  if (!fs.existsSync(certPath)) {
-    throw new Error("Certificado Efí não encontrado");
-  }
-
   return new https.Agent({
-    pfx: fs.readFileSync(certPath),
+    pfx: fs.readFileSync("/tmp/efi-cert.p12"),
     passphrase: "",
   });
 }
@@ -47,9 +37,11 @@ async function getToken() {
   return response.data.access_token;
 }
 
-// 💰 CRIAR PIX
+// 🧾 CRIAR PIX
 async function criarPix(valor, descricao) {
   const token = await getToken();
+
+  const txid = crypto.randomBytes(16).toString("hex"); // 32 chars
 
   const body = {
     calendario: { expiracao: 3600 },
@@ -58,8 +50,8 @@ async function criarPix(valor, descricao) {
     solicitacaoPagador: descricao,
   };
 
-  const response = await axios.post(
-    `${baseURL}/v2/cob`,
+  const response = await axios.put(
+    `${baseURL}/v2/cob/${txid}`,
     body,
     {
       httpsAgent: httpsAgent(),
@@ -70,20 +62,17 @@ async function criarPix(valor, descricao) {
     }
   );
 
-  const pix = response.data;
-
-  // 💾 SALVA COMO PENDENTE
-  pixStore.set(pix.txid, {
-    status: "PENDENTE",
-    valor,
-    criadoEm: new Date(),
-  });
-
-  console.log("🧾 PIX criado:", pix.txid);
+  const qr = await axios.get(
+    `${baseURL}/v2/loc/${response.data.loc.id}/qrcode`,
+    {
+      httpsAgent: httpsAgent(),
+      headers: { Authorization: `Bearer ${token}` },
+    }
+  );
 
   return {
-    txid: pix.txid,
-    pixCopiaECola: pix.pixCopiaECola,
+    txid,
+    pixCopiaECola: qr.data.qrcode,
   };
 }
 
@@ -92,7 +81,7 @@ async function consultarPixPorTxid(txid) {
   const token = await getToken();
 
   const response = await axios.get(
-    `${baseURL}/v2/pix/${txid}`,
+    `${baseURL}/v2/cob/${txid}`,
     {
       httpsAgent: httpsAgent(),
       headers: {
@@ -104,23 +93,22 @@ async function consultarPixPorTxid(txid) {
   return response.data;
 }
 
-// 🔄 JOB AUTOMÁTICO
+// ⏱️ JOB — VERIFICAR PIX PENDENTES
 async function verificarPixPendentes() {
   console.log("🔄 Verificando pagamentos Pix...");
 
-  for (const [txid, registro] of pixStore.entries()) {
-    if (registro.status !== "PENDENTE") continue;
+  // ⚠️ EXEMPLO: você pode trocar isso por banco de dados depois
+  const txidsParaVerificar = global.txids || [];
 
+  for (const txid of txidsParaVerificar) {
     try {
       const pix = await consultarPixPorTxid(txid);
 
       if (pix.status === "CONCLUIDA") {
-        registro.status = "PAGO";
-        registro.pagoEm = pix.horario;
-
-        pixStore.set(txid, registro);
-
         console.log("✅ PIX PAGO:", txid);
+        // aqui você libera produto / serviço
+      } else {
+        console.log("⏳ PIX ainda pendente:", txid);
       }
     } catch (err) {
       console.error(
@@ -133,5 +121,6 @@ async function verificarPixPendentes() {
 
 module.exports = {
   criarPix,
+  consultarPixPorTxid,
   verificarPixPendentes,
 };
