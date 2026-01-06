@@ -17,6 +17,9 @@ router.post("/criar", async (req, res) => {
     }
 
     const pix = await criarPix(Number(valor), descricao || "Pagamento");
+   
+    global.txids = global.txids || [];
+    global.txids.push(pix.txid);
 
     res.json(pix);
   } catch (err) {
