@@ -1,5 +1,4 @@
 // src/app.js
-
 const express = require("express");
 const pixRoutes = require("./routes/pix.routes");
 
@@ -7,8 +6,8 @@ const app = express();
 
 app.use(express.json());
 
-// 📡 Rotas
-app.use("/webhook", pixRoutes);
+// 📡 Rotas Pix
+app.use("/pix", pixRoutes);
 
 // 🩺 Health check
 app.get("/", (req, res) => {
