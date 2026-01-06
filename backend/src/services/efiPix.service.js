@@ -1,17 +1,13 @@
 const axios = require("axios");
 const https = require("https");
 const fs = require("fs");
+const crypto = require("crypto");
 
 console.log("🔥 EFI PIX SERVICE CARREGADO");
 
-const EFI_ENV = process.env.EFI_ENV || "production";
+const baseURL = "https://pix.api.efipay.com.br";
 
-const baseURL =
-  EFI_ENV === "homolog"
-    ? "https://pix-h.api.efipay.com.br"
-    : "https://pix.api.efipay.com.br";
-
-// 🔐 HTTPS Agent com certificado
+// 🔐 HTTPS Agent
 function httpsAgent() {
   return new https.Agent({
     pfx: fs.readFileSync("/tmp/efi-cert.p12"),
@@ -21,7 +17,7 @@ function httpsAgent() {
 
 // 🔑 TOKEN
 async function getToken() {
-  const { data } = await axios.post(
+  const response = await axios.post(
     `${baseURL}/oauth/token`,
     { grant_type: "client_credentials" },
     {
@@ -33,30 +29,59 @@ async function getToken() {
     }
   );
 
-  return data.access_token;
+  return response.data.access_token;
 }
 
-// 💸 CRIAR COBRANÇA PIX
+// 🆔 TXID
+function gerarTxid() {
+  return crypto.randomBytes(16).toString("hex");
+}
+
+// 💰 CRIAR PIX
 async function criarPix(valor, descricao) {
   const token = await getToken();
+  const txid = gerarTxid();
 
-  const { data } = await axios.post(
-    `${baseURL}/v2/cob`,
-    {
-      calendario: { expiracao: 3600 },
-      valor: { original: valor.toFixed(2) },
-      chave: process.env.EFI_PIX_KEY,
-      solicitacaoPagador: descricao,
+  const payload = {
+    calendario: { expiracao: 3600 },
+    valor: { original: valor.toFixed(2) },
+    chave: process.env.EFI_PIX_KEY,
+    solicitacaoPagador: descricao,
+  };
+
+  await axios.put(`${baseURL}/v2/cob/${txid}`, payload, {
+    httpsAgent: httpsAgent(),
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
     },
-    {
-      httpsAgent: httpsAgent(),
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    }
-  );
+  });
 
-  return data;
+  const qr = await axios.get(`${baseURL}/v2/loc/${txid}/qrcode`, {
+    httpsAgent: httpsAgent(),
+    headers: { Authorization: `Bearer ${token}` },
+  });
+
+  return {
+    txid,
+    valor,
+    copiaECola: qr.data.qrcode,
+  };
 }
 
-module.exports = { criarPix };
+// 🔎 CONSULTAR PIX
+async function consultarPixPorTxid(txid) {
+  const token = await getToken();
+
+  const response = await axios.get(`${baseURL}/v2/cob/${txid}`, {
+    httpsAgent: httpsAgent(),
+    headers: { Authorization: `Bearer ${token}` },
+  });
+
+  return response.data;
+}
+
+module.exports = {
+  criarPix,
+  consultarPixPorTxid,
+};
