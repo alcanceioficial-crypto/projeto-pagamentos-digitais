@@ -1,10 +1,8 @@
-// src/server.js
-
 const fs = require("fs");
 const app = require("./app");
 const { initEfiPix } = require("./services/efiPix.service");
 
-// 🔐 Garante que o certificado Efí exista em /tmp
+// 🔐 Certificado Efí
 const certPath = "/tmp/efi-cert.p12";
 
 if (!fs.existsSync(certPath)) {
@@ -15,16 +13,16 @@ if (!fs.existsSync(certPath)) {
     process.exit(1);
   }
 
-  const certBuffer = Buffer.from(base64Cert, "base64");
-  fs.writeFileSync(certPath, certBuffer);
+  fs.writeFileSync(certPath, Buffer.from(base64Cert, "base64"));
   console.log("📄 Certificado Efí recriado em /tmp");
 }
 
-// ✅ SOMENTE AGORA inicializa a Efí
-initEfiPix();
-
-// 🚀 Sobe o servidor
+// 🚀 Sobe servidor
 const PORT = process.env.PORT || 3333;
-app.listen(PORT, () => {
+
+app.listen(PORT, async () => {
   console.log(`🚀 Servidor rodando na porta ${PORT}`);
+
+  // 🔥 AGORA SIM — depois do certificado
+  await initEfiPix();
 });
