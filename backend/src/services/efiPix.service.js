@@ -34,8 +34,9 @@ async function getToken() {
 
 // 🆔 TXID
 function gerarTxid() {
-  return crypto.randomBytes(16).toString("hex");
+  return Date.now().toString(); 
 }
+
 
 // 💰 CRIAR PIX
 async function criarPix(valor, descricao) {
