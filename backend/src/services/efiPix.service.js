@@ -1,3 +1,5 @@
+// src/services/efiPix.service.js
+
 const axios = require("axios");
 const https = require("https");
 const fs = require("fs");
@@ -15,7 +17,7 @@ const baseURL =
 console.log("🌍 Ambiente:", EFI_ENV);
 console.log("🌐 Base URL:", baseURL);
 
-// 🔐 HTTPS Agent (APENAS PARA TOKEN E CONSULTA PIX)
+// 🔐 HTTPS Agent
 function httpsAgent() {
   const certPath = "/tmp/efi-cert.p12";
 
@@ -29,7 +31,7 @@ function httpsAgent() {
   });
 }
 
-// 🔑 GERAR TOKEN
+// 🔑 TOKEN
 async function getToken() {
   const response = await axios.post(
     `${baseURL}/oauth/token`,
@@ -46,7 +48,7 @@ async function getToken() {
   return response.data.access_token;
 }
 
-// 🔍 CONSULTAR PIX POR TXID
+// 🔍 CONSULTAR PIX POR TXID (FUNÇÃO QUE FALTAVA)
 async function consultarPixPorTxid(txid) {
   const token = await getToken();
 
