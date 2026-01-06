@@ -1,22 +1,22 @@
-// src/routes/pix.routes.js
-
 const express = require("express");
 const router = express.Router();
+const { criarPix } = require("../services/efiPix.service");
 
-router.post("/pix", (req, res) => {
-  console.log("📥 Webhook Pix recebido:");
-  console.dir(req.body, { depth: null });
+router.post("/criar", async (req, res) => {
+  try {
+    const { valor, descricao } = req.body;
 
-  const evento = req.body?.pix?.[0];
+    const pix = await criarPix(valor, descricao);
 
-  if (evento) {
-    console.log("💰 Valor:", evento.valor);
-    console.log("🔑 Txid:", evento.txid);
-    console.log("✅ PAGAMENTO CONFIRMADO");
+    res.json({
+      txid: pix.txid,
+      copiaECola: pix.pixCopiaECola,
+    });
+  } catch (err) {
+    res.status(500).json({
+      erro: err.response?.data || err.message,
+    });
   }
-
-  // Efí exige 200 OK
-  res.status(200).json({ recebido: true });
 });
 
 module.exports = router;
