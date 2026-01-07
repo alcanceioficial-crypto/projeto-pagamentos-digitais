@@ -7,13 +7,16 @@ const app = express();
 
 /**
  * 🔓 CORS LIBERADO
- * permite Netlify → Render
+ * Netlify → Render
  */
 app.use(cors({
-  origin: "*", // depois podemos restringir
-  methods: ["GET", "POST"],
+  origin: "*",
+  methods: ["GET", "POST", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"]
 }));
+
+// 👇 MUITO IMPORTANTE (preflight)
+app.options("*", cors());
 
 app.use(express.json());
 
