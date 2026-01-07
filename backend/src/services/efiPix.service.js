@@ -2,6 +2,7 @@ const axios = require("axios");
 const https = require("https");
 const fs = require("fs");
 const crypto = require("crypto");
+const pool = require("../database/db");
 
 console.log("🔥 EFI PIX SERVICE CARREGADO");
 
