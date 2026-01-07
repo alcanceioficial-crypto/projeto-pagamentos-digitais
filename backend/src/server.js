@@ -1,16 +1,16 @@
 const fs = require("fs");
 const app = require("./app");
+const initDb = require("./initDb");
 const { verificarPixPendentes } = require("./services/efiPix.service");
-const initDb = require("./initDB");
 
-// 🔐 Certificado EFÍ
+// 🔐 Certificado Efí
 const certPath = "/tmp/efi-cert.p12";
 
 if (!fs.existsSync(certPath)) {
   const base64Cert = process.env.EFI_CERT_BASE64;
 
   if (!base64Cert) {
-    console.error("EFI_CERT_BASE64 não definido");
+    console.error("❌ EFI_CERT_BASE64 não definido");
     process.exit(1);
   }
 
@@ -20,12 +20,19 @@ if (!fs.existsSync(certPath)) {
 
 const PORT = process.env.PORT || 3333;
 
-app.listen(PORT, async () => {
-  console.log(`🚀 Servidor rodando na porta ${PORT}`);
+(async () => {
+  try {
+    await initDb();
+    console.log("🗄️ Banco inicializado");
 
-  // 🔄 Inicializa banco
-  await initDb();
+    app.listen(PORT, () => {
+      console.log(`🚀 Servidor rodando na porta ${PORT}`);
 
-  // ⏱️ Polling a cada 2 minutos
-  setInterval(verificarPixPendentes, 2 * 60 * 1000);
-});
+      // ⏱️ polling Pix
+      setInterval(verificarPixPendentes, 2 * 60 * 1000);
+    });
+  } catch (err) {
+    console.error("❌ Falha ao iniciar servidor:", err);
+    process.exit(1);
+  }
+})();
