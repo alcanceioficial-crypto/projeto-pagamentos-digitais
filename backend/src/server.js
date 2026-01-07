@@ -1,8 +1,9 @@
 const fs = require("fs");
 const app = require("./app");
 const { verificarPixPendentes } = require("./services/efiPix.service");
+const initDb = require("./initDB");
 
-// 🔐 Certificado
+// 🔐 Certificado EFÍ
 const certPath = "/tmp/efi-cert.p12";
 
 if (!fs.existsSync(certPath)) {
@@ -19,9 +20,12 @@ if (!fs.existsSync(certPath)) {
 
 const PORT = process.env.PORT || 3333;
 
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
   console.log(`🚀 Servidor rodando na porta ${PORT}`);
 
-  // ⏱️ VERIFICA A CADA 2 MINUTOS
+  // 🔄 Inicializa banco
+  await initDb();
+
+  // ⏱️ Polling a cada 2 minutos
   setInterval(verificarPixPendentes, 2 * 60 * 1000);
 });
