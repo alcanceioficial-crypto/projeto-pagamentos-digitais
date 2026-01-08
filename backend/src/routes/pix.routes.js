@@ -23,7 +23,7 @@ router.post("/criar", async (req, res) => {
   }
 });
 
-// 🔹 Status para frontend (PADRÃO CORRETO)
+// 🔹 Status para frontend
 router.get("/status/:txid", async (req, res) => {
   try {
     const { txid } = req.params;
@@ -34,17 +34,21 @@ router.get("/status/:txid", async (req, res) => {
     );
 
     if (!rows.length) {
-      return res.json({ status: "NAO_ENCONTRADO" });
+      return res.json({ pago: false });
     }
 
-    return res.json({ status: rows[0].status });
+    if (rows[0].status === "CONCLUIDA") {
+      return res.json({ pago: true });
+    }
+
+    res.json({ pago: false });
   } catch (err) {
     console.error("Erro status:", err.message);
     res.status(500).json({ erro: "Erro ao consultar status" });
   }
 });
 
-// 🔹 DOWNLOAD DO PRODUTO (arquivo teste)
+// 🔹 DOWNLOAD DO PRODUTO
 router.get("/download/:txid", async (req, res) => {
   try {
     const { txid } = req.params;
