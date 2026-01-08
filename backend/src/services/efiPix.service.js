@@ -4,6 +4,8 @@ const fs = require("fs");
 const crypto = require("crypto");
 const pool = require("../database");
 
+console.log("🔥 EFI PIX SERVICE CARREGADO");
+
 const EFI_ENV = process.env.EFI_ENV || "production";
 
 const baseURL =
@@ -32,13 +34,15 @@ async function getToken() {
       },
     }
   );
+
   return response.data.access_token;
 }
 
 // 🧾 CRIAR PIX
 async function criarPix(valor, descricao) {
   const token = await getToken();
-  const txid = crypto.randomBytes(16).toString("hex");
+
+  const txid = crypto.randomBytes(16).toString("hex"); // 32 chars
 
   const body = {
     calendario: { expiracao: 3600 },
@@ -52,7 +56,10 @@ async function criarPix(valor, descricao) {
     body,
     {
       httpsAgent: httpsAgent(),
-      headers: { Authorization: `Bearer ${token}` },
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
     }
   );
 
@@ -64,7 +71,7 @@ async function criarPix(valor, descricao) {
     }
   );
 
-  // 💾 SALVA NO BANCO
+  // ✅ GRAVA NO BANCO COMO PENDENTE
   await pool.query(
     `INSERT INTO pix_pagamentos (txid, valor, status)
      VALUES ($1, $2, 'PENDENTE')`,
@@ -77,7 +84,7 @@ async function criarPix(valor, descricao) {
   };
 }
 
-// 🔍 CONSULTAR PIX
+// 🔍 CONSULTAR PIX POR TXID
 async function consultarPixPorTxid(txid) {
   const token = await getToken();
 
@@ -85,14 +92,16 @@ async function consultarPixPorTxid(txid) {
     `${baseURL}/v2/cob/${txid}`,
     {
       httpsAgent: httpsAgent(),
-      headers: { Authorization: `Bearer ${token}` },
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
     }
   );
 
   return response.data;
 }
 
-// ⏱️ JOB — POLLING
+// ⏱️ JOB — VERIFICAR PIX PENDENTES
 async function verificarPixPendentes() {
   console.log("🔄 Verificando pagamentos Pix...");
 
@@ -100,24 +109,29 @@ async function verificarPixPendentes() {
     `SELECT txid FROM pix_pagamentos WHERE status = 'PENDENTE'`
   );
 
-  for (const { txid } of rows) {
+  for (const row of rows) {
+    const txid = row.txid;
+
     try {
       const pix = await consultarPixPorTxid(txid);
 
       if (pix.status === "CONCLUIDA") {
+        console.log("✅ PIX PAGO:", txid);
+
         await pool.query(
           `UPDATE pix_pagamentos
-           SET status = 'PAGO', pago_em = NOW()
+           SET status = 'CONCLUIDA', pago_em = NOW()
            WHERE txid = $1`,
           [txid]
         );
-
-        console.log("✅ PIX PAGO:", txid);
       } else {
         console.log("⏳ PIX ainda pendente:", txid);
       }
     } catch (err) {
-      console.error("❌ Erro ao consultar Pix:", err.message);
+      console.error(
+        "❌ Erro ao consultar Pix:",
+        err.response?.data || err.message
+      );
     }
   }
 }
