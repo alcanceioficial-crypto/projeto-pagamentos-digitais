@@ -23,7 +23,7 @@ router.post("/criar", async (req, res) => {
   }
 });
 
-// 🔹 Status para frontend (simples)
+// 🔹 Status para frontend (PADRÃO CORRETO)
 router.get("/status/:txid", async (req, res) => {
   try {
     const { txid } = req.params;
@@ -34,14 +34,10 @@ router.get("/status/:txid", async (req, res) => {
     );
 
     if (!rows.length) {
-      return res.json({ pago: false });
+      return res.json({ status: "NAO_ENCONTRADO" });
     }
 
-    if (rows[0].status === "CONCLUIDA") {
-      return res.json({ pago: true });
-    }
-
-    res.json({ pago: false });
+    return res.json({ status: rows[0].status });
   } catch (err) {
     console.error("Erro status:", err.message);
     res.status(500).json({ erro: "Erro ao consultar status" });
