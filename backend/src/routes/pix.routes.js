@@ -60,7 +60,7 @@ router.get("/download/:txid", async (req, res) => {
   try {
     const { txid } = req.params;
 
-    // 🔎 Confirma se o pagamento foi concluído
+    // 🔎 Confirma pagamento
     const { rows } = await pool.query(
       `SELECT status FROM pix_pagamentos WHERE txid = $1`,
       [txid]
@@ -70,7 +70,7 @@ router.get("/download/:txid", async (req, res) => {
       return res.status(403).json({ erro: "Pagamento não confirmado" });
     }
 
-    // 📁 Caminho REAL do arquivo no Render
+    // 📁 Caminho absoluto no Render
     const filePath = path.join(
       process.cwd(),
       "backend",
@@ -79,7 +79,7 @@ router.get("/download/:txid", async (req, res) => {
       "livro-colorir-avatar.pdf"
     );
 
-    // 🛑 Segurança: verificar se o arquivo existe
+    // 🛑 Segurança
     if (!fs.existsSync(filePath)) {
       console.error("❌ Arquivo não encontrado:", filePath);
       return res.status(404).json({ erro: "Arquivo não encontrado" });
@@ -87,7 +87,6 @@ router.get("/download/:txid", async (req, res) => {
 
     console.log("📦 Download liberado | TXID:", txid);
 
-    // ⬇️ Força download do PDF
     res.download(filePath, "Livro-Colorir-Avatar.pdf");
 
   } catch (err) {
