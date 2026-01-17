@@ -87,7 +87,7 @@ router.get("/download/:txid", async (req, res) => {
 
     console.log("📦 Download liberado | TXID:", txid);
 
-    res.download(filePath, "livro-Colorir-Avatar.pdf");
+    res.download(filePath, "livro-colorir-avatar.pdf");
 
   } catch (err) {
     console.error("❌ Erro download:", err.message);
