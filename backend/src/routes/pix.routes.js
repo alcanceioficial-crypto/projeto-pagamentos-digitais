@@ -71,13 +71,13 @@ router.get("/download/:txid", async (req, res) => {
     }
 
     // 📁 Caminho absoluto no Render
-    const filePath = path.join(
-      process.cwd(),
-      "backend",
-      "src",
-      "files",
-      "livro-colorir-avatar.pdf"
-    );
+   const filePath = path.join(
+  __dirname,
+  "..",
+  "files",
+  "livro-colorir-avatar.pdf"
+);
+
 
     // 🛑 Segurança
     if (!fs.existsSync(filePath)) {
