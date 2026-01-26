@@ -1,5 +1,7 @@
 const fs = require("fs");
 const app = require("./app");
+// const initDb = require("./initDb"); ❌ DESATIVADO
+// const { verificarPixPendentes } = require("./services/efiPix.service"); ❌ DESATIVADO
 
 // 🔐 Certificado Efí
 const certPath = "/tmp/efi-cert.p12";
@@ -18,11 +20,17 @@ if (!fs.existsSync(certPath)) {
 
 const PORT = process.env.PORT || 3333;
 
-try {
-  app.listen(PORT, () => {
-    console.log(`🚀 Servidor rodando na porta ${PORT}`);
-  });
-} catch (err) {
-  console.error("❌ Falha ao iniciar servidor:", err);
-  process.exit(1);
-}
+(async () => {
+  try {
+    // 🚫 SEM BANCO
+    console.log("⚠️ Iniciando servidor SEM banco (Render Free)");
+
+    app.listen(PORT, () => {
+      console.log(`🚀 Servidor rodando na porta ${PORT}`);
+    });
+
+  } catch (err) {
+    console.error("❌ Falha ao iniciar servidor:", err);
+    process.exit(1);
+  }
+})();
