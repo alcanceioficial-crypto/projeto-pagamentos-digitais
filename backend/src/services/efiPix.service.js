@@ -2,9 +2,8 @@ const axios = require("axios");
 const https = require("https");
 const fs = require("fs");
 const crypto = require("crypto");
-const pool = require("../database");
 
-console.log("🔥 EFI PIX SERVICE CARREGADO");
+console.log("🔥 EFI PIX SERVICE CARREGADO (SEM BANCO)");
 
 const EFI_ENV = process.env.EFI_ENV || "production";
 
@@ -38,11 +37,11 @@ async function getToken() {
   return response.data.access_token;
 }
 
-// 🧾 CRIAR PIX
+// 🧾 CRIAR PIX (SEM BANCO)
 async function criarPix(valor, descricao) {
   const token = await getToken();
 
-  const txid = crypto.randomBytes(16).toString("hex"); // 32 chars
+  const txid = crypto.randomBytes(16).toString("hex");
 
   const body = {
     calendario: { expiracao: 3600 },
@@ -71,20 +70,13 @@ async function criarPix(valor, descricao) {
     }
   );
 
-  // ✅ GRAVA NO BANCO COMO PENDENTE
-  await pool.query(
-    `INSERT INTO pix_pagamentos (txid, valor, status)
-     VALUES ($1, $2, 'PENDENTE')`,
-    [txid, valor]
-  );
-
   return {
     txid,
     pixCopiaECola: qr.data.qrcode,
   };
 }
 
-// 🔍 CONSULTAR PIX POR TXID
+// 🔍 CONSULTAR PIX DIRETO NA EFI (SEM BANCO)
 async function consultarPixPorTxid(txid) {
   const token = await getToken();
 
@@ -101,39 +93,9 @@ async function consultarPixPorTxid(txid) {
   return response.data;
 }
 
-// ⏱️ JOB — VERIFICAR PIX PENDENTES
+// 🧹 DESATIVADO (SEM BANCO)
 async function verificarPixPendentes() {
-  console.log("🔄 Verificando pagamentos Pix...");
-
-  const { rows } = await pool.query(
-    `SELECT txid FROM pix_pagamentos WHERE status = 'PENDENTE'`
-  );
-
-  for (const row of rows) {
-    const txid = row.txid;
-
-    try {
-      const pix = await consultarPixPorTxid(txid);
-
-      if (pix.status === "CONCLUIDA") {
-        console.log("✅ PIX PAGO:", txid);
-
-        await pool.query(
-          `UPDATE pix_pagamentos
-           SET status = 'CONCLUIDA', pago_em = NOW()
-           WHERE txid = $1`,
-          [txid]
-        );
-      } else {
-        console.log("⏳ PIX ainda pendente:", txid);
-      }
-    } catch (err) {
-      console.error(
-        "❌ Erro ao consultar Pix:",
-        err.response?.data || err.message
-      );
-    }
-  }
+  return;
 }
 
 module.exports = {
