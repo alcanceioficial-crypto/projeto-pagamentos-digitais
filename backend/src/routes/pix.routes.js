@@ -3,9 +3,9 @@ const router = express.Router();
 const path = require("path");
 const fs = require("fs");
 
-const { criarPix, consultarPix } = require("../services/efiPix.service");
+const { criarPix } = require("../services/efiPix.service");
 
-// 🧠 Memória temporária (Render Free)
+// 🧠 memória simples (Render Free)
 const pagamentos = {};
 
 /* ======================================================
@@ -28,38 +28,31 @@ router.post("/criar", async (req, res) => {
 
     res.json(pix);
   } catch (err) {
-    console.error("❌ Erro criar pix:", err.message);
+    console.error("❌ Erro criar pix:", err);
     res.status(500).json({ erro: "Erro ao criar PIX" });
   }
 });
 
 /* ======================================================
-   STATUS DO PIX (POLLING)
+   STATUS DO PIX
+   (frontend faz polling)
 ====================================================== */
-router.get("/status/:txid", async (req, res) => {
-  try {
-    const { txid } = req.params;
+router.get("/status/:txid", (req, res) => {
+  const { txid } = req.params;
 
-    if (!pagamentos[txid]) {
-      return res.json({ pago: false });
-    }
-
-    const status = await consultarPix(txid);
-
-    if (status === "CONCLUIDA") {
-      pagamentos[txid].status = "CONCLUIDA";
-      return res.json({ pago: true });
-    }
-
-    res.json({ pago: false });
-  } catch (err) {
-    console.error("❌ Erro status:", err.message);
-    res.json({ pago: false });
+  if (!pagamentos[txid]) {
+    return res.json({ pago: false });
   }
+
+  if (pagamentos[txid].status === "CONCLUIDA") {
+    return res.json({ pago: true });
+  }
+
+  res.json({ pago: false });
 });
 
 /* ======================================================
-   DOWNLOAD DO PRODUTO (PDF)
+   DOWNLOAD DO PRODUTO
 ====================================================== */
 router.get("/download/:txid", (req, res) => {
   const { txid } = req.params;
@@ -76,11 +69,8 @@ router.get("/download/:txid", (req, res) => {
   );
 
   if (!fs.existsSync(filePath)) {
-    console.error("❌ Arquivo não encontrado:", filePath);
     return res.status(404).json({ erro: "Arquivo não encontrado" });
   }
-
-  console.log("📦 Download liberado | TXID:", txid);
 
   res.download(filePath, "ebook-brigadeiro-gourmet.pdf");
 });
