@@ -3,7 +3,7 @@ const https = require("https");
 const fs = require("fs");
 const crypto = require("crypto");
 
-console.log("🔥 EFI PIX SERVICE CARREGADO (SEM BANCO)");
+console.log("🔥 EFI PIX SERVICE CARREGADO");
 
 const EFI_ENV = process.env.EFI_ENV || "production";
 
@@ -12,7 +12,7 @@ const baseURL =
     ? "https://pix-h.api.efipay.com.br"
     : "https://pix.api.efipay.com.br";
 
-// 🔐 HTTPS Agent
+// HTTPS Agent
 function httpsAgent() {
   return new https.Agent({
     pfx: fs.readFileSync("/tmp/efi-cert.p12"),
@@ -20,7 +20,7 @@ function httpsAgent() {
   });
 }
 
-// 🔑 TOKEN
+// TOKEN
 async function getToken() {
   const response = await axios.post(
     `${baseURL}/oauth/token`,
@@ -37,10 +37,9 @@ async function getToken() {
   return response.data.access_token;
 }
 
-// 🧾 CRIAR PIX (SEM BANCO)
+// CRIAR PIX
 async function criarPix(valor, descricao) {
   const token = await getToken();
-
   const txid = crypto.randomBytes(16).toString("hex");
 
   const body = {
@@ -76,7 +75,7 @@ async function criarPix(valor, descricao) {
   };
 }
 
-// 🔍 CONSULTAR PIX DIRETO NA EFI (SEM BANCO)
+// CONSULTAR PIX DIRETO NA EFI
 async function consultarPixPorTxid(txid) {
   const token = await getToken();
 
@@ -93,13 +92,7 @@ async function consultarPixPorTxid(txid) {
   return response.data;
 }
 
-// 🧹 DESATIVADO (SEM BANCO)
-async function verificarPixPendentes() {
-  return;
-}
-
 module.exports = {
   criarPix,
   consultarPixPorTxid,
-  verificarPixPendentes,
 };
