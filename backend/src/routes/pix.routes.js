@@ -37,19 +37,23 @@ router.post("/criar", async (req, res) => {
    STATUS DO PIX
    (frontend faz polling)
 ====================================================== */
-router.get("/status/:txid", (req, res) => {
-  const { txid } = req.params;
+const { consultarPixPorTxid } = require("../services/efiPix.service");
 
-  if (!pagamentos[txid]) {
-    return res.json({ pago: false });
+router.get("/status/:txid", async (req, res) => {
+  try {
+    const pix = await consultarPixPorTxid(req.params.txid);
+
+    if (pix.status === "CONCLUIDA") {
+      return res.json({ pago: true });
+    }
+
+    res.json({ pago: false });
+  } catch (err) {
+    console.error("Erro status PIX:", err.message);
+    res.json({ pago: false });
   }
-
-  if (pagamentos[txid].status === "CONCLUIDA") {
-    return res.json({ pago: true });
-  }
-
-  res.json({ pago: false });
 });
+
 
 /* ======================================================
    DOWNLOAD DO PRODUTO
