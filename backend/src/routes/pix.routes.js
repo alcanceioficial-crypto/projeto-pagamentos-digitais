@@ -2,9 +2,11 @@ const express = require("express");
 const router = express.Router();
 const path = require("path");
 const fs = require("fs");
-const pool = require("../database");
 
-const { criarPix } = require("../services/efiPix.service");
+const { criarPix, consultarPix } = require("../services/efiPix.service");
+
+// 🧠 Memória temporária (Render Free)
+const pagamentos = {};
 
 /* ======================================================
    CRIAR PIX
@@ -18,6 +20,11 @@ router.post("/criar", async (req, res) => {
     }
 
     const pix = await criarPix(Number(valor), descricao || "Pagamento");
+
+    pagamentos[pix.txid] = {
+      status: "PENDENTE",
+      criadoEm: Date.now()
+    };
 
     res.json(pix);
   } catch (err) {
@@ -33,66 +40,49 @@ router.get("/status/:txid", async (req, res) => {
   try {
     const { txid } = req.params;
 
-    const { rows } = await pool.query(
-      `SELECT status FROM pix_pagamentos WHERE txid = $1`,
-      [txid]
-    );
-
-    if (!rows.length) {
+    if (!pagamentos[txid]) {
       return res.json({ pago: false });
     }
 
-    if (rows[0].status === "CONCLUIDA") {
+    const status = await consultarPix(txid);
+
+    if (status === "CONCLUIDA") {
+      pagamentos[txid].status = "CONCLUIDA";
       return res.json({ pago: true });
     }
 
     res.json({ pago: false });
   } catch (err) {
     console.error("❌ Erro status:", err.message);
-    res.status(500).json({ erro: "Erro ao consultar status" });
+    res.json({ pago: false });
   }
 });
 
 /* ======================================================
    DOWNLOAD DO PRODUTO (PDF)
 ====================================================== */
-router.get("/download/:txid", async (req, res) => {
-  try {
-    const { txid } = req.params;
+router.get("/download/:txid", (req, res) => {
+  const { txid } = req.params;
 
-    // 🔎 Confirma pagamento
-    const { rows } = await pool.query(
-      `SELECT status FROM pix_pagamentos WHERE txid = $1`,
-      [txid]
-    );
-
-    if (!rows.length || rows[0].status !== "CONCLUIDA") {
-      return res.status(403).json({ erro: "Pagamento não confirmado" });
-    }
-
-    // 📁 Caminho absoluto no Render
-   const filePath = path.join(
-  __dirname,
-  "..",
-  "files",
-  "livro-colorir-avatar.pdf"
-);
-
-
-    // 🛑 Segurança
-    if (!fs.existsSync(filePath)) {
-      console.error("❌ Arquivo não encontrado:", filePath);
-      return res.status(404).json({ erro: "Arquivo não encontrado" });
-    }
-
-    console.log("📦 Download liberado | TXID:", txid);
-
-    res.download(filePath, "livro-colorir-avatar.pdf");
-
-  } catch (err) {
-    console.error("❌ Erro download:", err.message);
-    res.status(500).json({ erro: "Erro ao liberar download" });
+  if (!pagamentos[txid] || pagamentos[txid].status !== "CONCLUIDA") {
+    return res.status(403).json({ erro: "Pagamento não confirmado" });
   }
+
+  const filePath = path.join(
+    __dirname,
+    "..",
+    "files",
+    "ebook-brigadeiro-gourmet.pdf"
+  );
+
+  if (!fs.existsSync(filePath)) {
+    console.error("❌ Arquivo não encontrado:", filePath);
+    return res.status(404).json({ erro: "Arquivo não encontrado" });
+  }
+
+  console.log("📦 Download liberado | TXID:", txid);
+
+  res.download(filePath, "ebook-brigadeiro-gourmet.pdf");
 });
 
 module.exports = router;
