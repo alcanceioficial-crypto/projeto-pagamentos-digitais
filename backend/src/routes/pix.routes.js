@@ -1,60 +1,66 @@
 const express = require("express");
 const router = express.Router();
-const path = require("path");
-const fs = require("fs");
 
-const {
-  criarPix,
-  consultarPixPorTxid
-} = require("../services/efiPix.service");
+const { criarPix, consultarPixPorTxid } = require("../services/efiPix.service");
+
+/* ======================================================
+   CONFIGURAÇÃO DO PRODUTO (ALTERE AQUI SE PRECISAR)
+====================================================== */
+
+// 🔥 PARA TESTE: 0.50
+// 🔥 PARA PRODUÇÃO: 9.90
+const VALOR_PRODUTO = 9.90;
+
+const DESCRICAO_PRODUTO = "E-book Brigadeiro Gourmet";
 
 /* ======================================================
    CRIAR PIX
 ====================================================== */
-router.post("/criar", async (req, res) => {
+router.post("/gerar_pix", async (req, res) => {
   try {
-    const { valor, descricao } = req.body;
+    const pix = await criarPix(VALOR_PRODUTO, DESCRICAO_PRODUTO);
 
-    if (!valor) {
-      return res.status(400).json({ erro: "Valor é obrigatório" });
-    }
+    console.log("🧾 PIX GERADO:", pix.txid);
 
-    const pix = await criarPix(Number(valor), descricao || "Pagamento");
-
-    console.log("💰 PIX GERADO:", pix.txid);
-
-    res.json(pix);
+    res.json({
+      txid: pix.txid,
+      pix: pix.pixCopiaECola
+    });
 
   } catch (err) {
-    console.error("❌ Erro ao criar PIX:", err.response?.data || err.message);
-    res.status(500).json({ erro: "Erro ao criar PIX" });
+    console.error("❌ Erro ao gerar PIX:", err.message);
+    res.status(500).json({ erro: "Erro ao gerar PIX" });
   }
 });
 
 /* ======================================================
-   STATUS PIX (CONSULTA DIRETA NO EFÍ)
+   STATUS DO PIX (CONSULTA DIRETA NA EFÍ — SEM BANCO)
 ====================================================== */
-router.get("/status/:txid", async (req, res) => {
+router.get("/status_pix", async (req, res) => {
   try {
-    const { txid } = req.params;
+    const { txid } = req.query;
+
+    if (!txid) {
+      return res.status(400).json({ erro: "TXID não informado" });
+    }
 
     const pix = await consultarPixPorTxid(txid);
 
     if (pix.status === "CONCLUIDA") {
-      console.log("✅ PIX CONFIRMADO:", txid);
-      return res.json({ pago: true });
+      console.log("✅ PIX PAGO:", txid);
+      return res.json({ status: "CONCLUIDA" });
     }
 
-    return res.json({ pago: false });
+    return res.json({ status: "PENDENTE" });
 
   } catch (err) {
-    console.error("❌ Erro status PIX:", err.response?.data || err.message);
-    res.json({ pago: false });
+    console.error("❌ Erro ao consultar status:", err.message);
+    res.status(500).json({ erro: "Erro ao consultar status" });
   }
 });
 
 /* ======================================================
-   DOWNLOAD PROTEGIDO
+   DOWNLOAD (LIBERADO APÓS CONFIRMAÇÃO)
 ====================================================== */
 router.get("/download/:txid", async (req, res) => {
   try {
@@ -66,6 +72,9 @@ router.get("/download/:txid", async (req, res) => {
       return res.status(403).json({ erro: "Pagamento não confirmado" });
     }
 
+    const path = require("path");
+    const fs = require("fs");
+
     const filePath = path.join(
       __dirname,
       "..",
@@ -74,10 +83,12 @@ router.get("/download/:txid", async (req, res) => {
     );
 
     if (!fs.existsSync(filePath)) {
+      console.error("❌ PDF não encontrado:", filePath);
       return res.status(404).json({ erro: "Arquivo não encontrado" });
     }
 
-    console.log("📦 DOWNLOAD LIBERADO:", txid);
+    console.log("📦 Download liberado | TXID:", txid);
+
     res.download(filePath, "ebook-brigadeiro-gourmet.pdf");
 
   } catch (err) {
