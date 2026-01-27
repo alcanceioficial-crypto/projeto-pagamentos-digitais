@@ -12,7 +12,7 @@ const baseURL =
     ? "https://pix-h.api.efipay.com.br"
     : "https://pix.api.efipay.com.br";
 
-// HTTPS Agent
+// 🔐 HTTPS Agent
 function httpsAgent() {
   return new https.Agent({
     pfx: fs.readFileSync("/tmp/efi-cert.p12"),
@@ -20,7 +20,7 @@ function httpsAgent() {
   });
 }
 
-// TOKEN
+// 🔑 TOKEN
 async function getToken() {
   const response = await axios.post(
     `${baseURL}/oauth/token`,
@@ -37,9 +37,10 @@ async function getToken() {
   return response.data.access_token;
 }
 
-// CRIAR PIX
+// 🧾 CRIAR PIX
 async function criarPix(valor, descricao) {
   const token = await getToken();
+
   const txid = crypto.randomBytes(16).toString("hex");
 
   const body = {
@@ -75,7 +76,7 @@ async function criarPix(valor, descricao) {
   };
 }
 
-// CONSULTAR PIX DIRETO NA EFI
+// 🔍 CONSULTAR PIX
 async function consultarPixPorTxid(txid) {
   const token = await getToken();
 
