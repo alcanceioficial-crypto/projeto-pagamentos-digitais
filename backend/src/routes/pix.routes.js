@@ -1,82 +1,29 @@
-const express = require("express");
-const router = express.Router();
-const path = require("path");
-const fs = require("fs");
-
-const { criarPix } = require("../services/efiPix.service");
-
-// 🧠 memória simples (Render Free)
-const pagamentos = {};
-
-/* ======================================================
-   CRIAR PIX
-====================================================== */
-router.post("/criar", async (req, res) => {
+router.get("/download/:txid", async (req, res) => {
   try {
-    const { valor, descricao } = req.body;
+    const { txid } = req.params;
 
-    if (!valor) {
-      return res.status(400).json({ erro: "Valor é obrigatório" });
+    const pix = await consultarPixPorTxid(txid);
+
+    if (pix.status !== "CONCLUIDA") {
+      return res.status(403).json({ erro: "Pagamento ainda não confirmado" });
     }
 
-    const pix = await criarPix(Number(valor), descricao || "Pagamento");
+    const filePath = path.join(
+      __dirname,
+      "..",
+      "files",
+      "ebook-brigadeiro-gourmet.pdf"
+    );
 
-    pagamentos[pix.txid] = {
-      status: "PENDENTE",
-      criadoEm: Date.now()
-    };
-
-    res.json(pix);
-  } catch (err) {
-    console.error("❌ Erro criar pix:", err);
-    res.status(500).json({ erro: "Erro ao criar PIX" });
-  }
-});
-
-/* ======================================================
-   STATUS DO PIX
-   (frontend faz polling)
-====================================================== */
-const { consultarPixPorTxid } = require("../services/efiPix.service");
-
-router.get("/status/:txid", async (req, res) => {
-  try {
-    const pix = await consultarPixPorTxid(req.params.txid);
-
-    if (pix.status === "CONCLUIDA") {
-      return res.json({ pago: true });
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({ erro: "Arquivo não encontrado" });
     }
 
-    res.json({ pago: false });
+    console.log("📦 DOWNLOAD LIBERADO | TXID:", txid);
+    res.download(filePath, "ebook-brigadeiro-gourmet.pdf");
+
   } catch (err) {
-    console.error("Erro status PIX:", err.message);
-    res.json({ pago: false });
+    console.error("❌ Erro no download:", err.message);
+    res.status(500).json({ erro: "Erro ao liberar download" });
   }
 });
-
-
-/* ======================================================
-   DOWNLOAD DO PRODUTO
-====================================================== */
-router.get("/download/:txid", (req, res) => {
-  const { txid } = req.params;
-
-  if (!pagamentos[txid] || pagamentos[txid].status !== "CONCLUIDA") {
-    return res.status(403).json({ erro: "Pagamento não confirmado" });
-  }
-
-  const filePath = path.join(
-    __dirname,
-    "..",
-    "files",
-    "ebook-brigadeiro-gourmet.pdf"
-  );
-
-  if (!fs.existsSync(filePath)) {
-    return res.status(404).json({ erro: "Arquivo não encontrado" });
-  }
-
-  res.download(filePath, "ebook-brigadeiro-gourmet.pdf");
-});
-
-module.exports = router;
