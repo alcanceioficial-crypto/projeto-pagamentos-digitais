@@ -8,8 +8,8 @@ const { criarPix, consultarPixPorTxid } = require("../services/efiPix.service");
 ====================================================== */
 
 // 🔥 PARA TESTE: 0.50
-// 🔥 PARA PRODUÇÃO: 1.00
-const VALOR_PRODUTO = 1.00;
+// 🔥 PARA PRODUÇÃO: 2.99
+const VALOR_PRODUTO = 2.99;
 
 const DESCRICAO_PRODUTO = "E-book Brigadeiro Gourmet";
 
