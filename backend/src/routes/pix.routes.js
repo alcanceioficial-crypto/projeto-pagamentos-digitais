@@ -9,9 +9,9 @@ const { criarPix, consultarPixPorTxid } = require("../services/efiPix.service");
 
 // 🔥 PARA TESTE: 0.10
 // 🔥 PARA PRODUÇÃO: 0.50
-const VALOR_PRODUTO = 0.10;
+const VALOR_PRODUTO = 0.50;
 
-const DESCRICAO_PRODUTO = "E-book Brigadeiro Gourmet";
+const DESCRICAO_PRODUTO = "Biscoito da sorte - mensagens de inspiração";
 
 /* ======================================================
    CRIAR PIX
